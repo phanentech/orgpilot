@@ -4761,6 +4761,12 @@ function renderSites(){
   SE = null;
   var el = $id('pg-sites'), can_ = can('sites.manage');
   if(!can_){ el.innerHTML = '<div class="card">'+emptyState('🔒','No access','You do not have permission to manage event sites.','')+'</div>'; return; }
+  el.innerHTML = '<div class="tabs" id="siteTabs"><button class="tab active" data-t="sites">Event sites</button><button class="tab" data-t="leads">Leads</button></div><div id="siteTabBody"></div>';
+  $id('siteTabs').addEventListener('click', function(e){ var b = e.target.closest('[data-t]'); if(!b) return; Array.prototype.forEach.call($id('siteTabs').children, function(x){ x.classList.toggle('active', x===b); }); if(b.dataset.t==='leads') renderLeads(); else renderSiteGrid(); });
+  renderSiteGrid();
+}
+function renderSiteGrid(){
+  var el = $id('siteTabBody');
   el.innerHTML = '<div class="page-head"><div style="font-size:13px;color:var(--muted);max-width:620px;">Create a beautiful event page with a signup form in minutes. Share the link and watch registrations arrive.</div><div class="page-actions"><button class="btn btn-primary" id="siteNew">'+ic('plus')+' New event site</button></div></div><div class="cmp-grid" id="siteList">'+[1,2,3].map(function(){ return '<div class="skel" style="height:220px;"></div>'; }).join('')+'</div>';
   $id('siteNew').addEventListener('click', siteTemplatePicker);
   api('sites.list', {}).then(function(res){
@@ -4888,6 +4894,38 @@ function openRegistrations(site){
   }).catch(saErr);
 }
 
+/* ---------- leads dashboard ---------- */
+function renderLeads(){
+  var el = $id('siteTabBody'); el.innerHTML = '<div class="skel" style="height:120px;margin-bottom:14px;"></div><div class="skel" style="height:260px;"></div>';
+  Promise.all([api('sites.leads',{}), api('sites.list',{})]).then(function(rs){
+    var leads = rs[0] || [], sites = (rs[1] && rs[1].sites) || [], DAY = 86400000, now = Date.now();
+    leads.forEach(function(r){ r._t = new Date(r.CreatedAt).getTime() || 0; });
+    var total = leads.length, week = leads.filter(function(r){ return now - r._t < 7*DAY; }).length, today = leads.filter(function(r){ return new Date(r._t).toDateString()===new Date().toDateString(); }).length;
+    var checked = leads.filter(function(r){ return r.Status==='Checked in'; }).length, rate = total ? Math.round(checked/total*100) : 0;
+    var days = [], max = 1; for(var i=13;i>=0;i--){ var d0 = new Date(now - i*DAY); var n = leads.filter(function(r){ return new Date(r._t).toDateString()===d0.toDateString(); }).length; max = Math.max(max,n); days.push({ l:d0.getDate()+'/'+(d0.getMonth()+1), n:n }); }
+    var per = sites.map(function(s){ return { t:s.Title, n:leads.filter(function(r){ return r.SiteID===s.SiteID; }).length }; }).sort(function(a,b){ return b.n-a.n; });
+    var pmax = Math.max.apply(null, per.map(function(x){ return x.n; }).concat([1]));
+    function kpi(label,val,cls,icn){ return '<div class="stat-card '+cls+'"><div class="sc-top"><span style="font-size:12px;color:var(--muted);font-weight:600;">'+label+'</span><span class="sc-icon">'+ic(icn)+'</span></div><div style="font-size:26px;font-weight:700;">'+val+'</div></div>'; }
+    el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">'+kpi('Total leads',total,'blue','users')+kpi('Last 7 days',week,'green','trend')+kpi('Today',today,'blue','calendar')+kpi('Checked in',checked+' ('+rate+'%)','green','check')+'</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px;">' +
+      '<div class="card"><strong style="font-size:14px;">Leads, last 14 days</strong><div style="display:flex;align-items:flex-end;gap:4px;height:130px;margin-top:14px;">'+days.map(function(x){ return '<div title="'+x.l+': '+x.n+'" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:3px;"><span style="font-size:10px;color:var(--muted);">'+(x.n||'')+'</span><div style="width:100%;background:var(--brand);border-radius:4px 4px 0 0;height:'+Math.max(x.n?6:2, x.n/max*100)+'px;opacity:'+(x.n?1:.25)+';"></div></div>'; }).join('')+'</div><div style="display:flex;gap:4px;margin-top:4px;">'+days.map(function(x,i){ return '<span style="flex:1;font-size:9px;color:var(--muted);text-align:center;">'+(i%2===0?x.l:'')+'</span>'; }).join('')+'</div></div>' +
+      '<div class="card"><strong style="font-size:14px;">Leads by event site</strong><div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">'+(per.length?per.map(function(x){ return '<div><div style="display:flex;justify-content:space-between;font-size:12px;gap:8px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(x.t)+'</span><b>'+x.n+'</b></div><div style="height:8px;background:var(--border);border-radius:99px;margin-top:4px;"><div style="height:8px;border-radius:99px;background:var(--accent);width:'+(x.n/pmax*100)+'%;"></div></div></div>'; }).join(''):'<span style="color:var(--muted);font-size:13px;">No event sites yet.</span>')+'</div></div></div>' +
+      '<div class="card"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;"><input class="fc" id="ldQ" placeholder="Search name, email or phone" style="flex:1;min-width:180px;"><select class="fc" id="ldS" style="max-width:220px;"><option value="">All event sites</option>'+sites.map(function(s){ return '<option value="'+s.SiteID+'">'+esc(s.Title)+'</option>'; }).join('')+'</select><button class="btn btn-primary btn-sm" id="ldCsv">'+ic('download')+' Export CSV</button></div><div id="ldTbl"></div></div>';
+    var view = leads;
+    function draw(){
+      var q = $id('ldQ').value.trim().toLowerCase(), sid = $id('ldS').value;
+      view = leads.filter(function(r){ return (!sid || r.SiteID===sid) && (!q || (r.FullName+' '+r.Email+' '+(r.Phone||'')).toLowerCase().indexOf(q)>-1); });
+      $id('ldTbl').innerHTML = view.length ? '<div class="table-wrap"><table class="dtbl"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Source (event site)</th><th>Status</th><th>Date</th></tr></thead><tbody>'+view.map(function(r){ return '<tr><td>'+esc(r.FullName)+'</td><td>'+esc(r.Email)+'</td><td>'+esc(r.Phone||'')+'</td><td>'+esc(r.SiteTitle||'')+'</td><td>'+(r.Status==='Checked in'?'<span class="tag tag-green">Checked in</span>':'<span class="tag tag-blue">New lead</span>')+'</td><td>'+esc(r._t?new Date(r._t).toLocaleString():'')+'</td></tr>'; }).join('')+'</tbody></table></div>' : '<div style="padding:28px;text-align:center;color:var(--muted);">'+(leads.length?'No leads match your filter.':'No leads yet. Share an event site link and signups will appear here.')+'</div>';
+    }
+    draw(); $id('ldQ').addEventListener('input', draw); $id('ldS').addEventListener('change', draw);
+    $id('ldCsv').addEventListener('click', function(){
+      var q = function(v){ return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'; };
+      var csv = [['Name','Email','Phone','Event site','Status','Date'].map(q).join(',')].concat(view.map(function(r){ return [r.FullName,r.Email,r.Phone,r.SiteTitle,r.Status,r.CreatedAt].map(q).join(','); })).join('\n');
+      downloadBlob(new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'}), 'leads.csv');
+    });
+  }).catch(function(e){ el.innerHTML = '<div class="card" style="color:var(--danger);">'+esc(e.message||'Could not load leads.')+'</div>'; });
+}
+
 /* ============================================================================
  * MULTI-TENANT FRONT DOOR: signup, trial banner, public-site routing, demo data
  * ==========================================================================*/
@@ -4992,6 +5030,7 @@ function demoTenantRoute(action, data){
   }
   if(action === 'sites.delete'){ d.sites = d.sites.filter(function(x){ return x.SiteID!==data.siteId; }); demoTSave(); return { handled:true, value:{deleted:true} }; }
   if(action === 'sites.registrations') return { handled:true, value:d.regs.filter(function(r){ return r.SiteID===data.siteId; }).slice().reverse() };
+  if(action === 'sites.leads') return { handled:true, value:d.regs.slice().reverse() };
   if(action === 'sites.checkin'){ var r = d.regs.filter(function(x){ return x.RegID===data.regId; })[0]; if(r) r.Status = r.Status==='Checked in' ? 'Registered' : 'Checked in'; demoTSave(); return { handled:true, value:{status:r&&r.Status} }; }
   if(action === 'sites.removeReg'){ var rr = d.regs.filter(function(x){ return x.RegID===data.regId; })[0]; if(rr){ d.sites.forEach(function(s2){ if(s2.SiteID===rr.SiteID) s2.RegCount = Math.max(0,(s2.RegCount||0)-1); }); } d.regs = d.regs.filter(function(x){ return x.RegID!==data.regId; }); demoTSave(); return { handled:true, value:{removed:true} }; }
   if(action === 'site.public'){
