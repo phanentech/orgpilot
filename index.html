@@ -3,6 +3,10 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563EB">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>OrgPilot</title>
 <style>
 :root{
@@ -20,7 +24,7 @@
 }
 [data-theme="dark"]{--ink:#F1F5F9;--surface:#1E293B;--surface2:#0F172A;--surface3:#334155;--bg:#0F172A;--border:#334155;--muted:#94A3B8;}
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+html,body{margin:0;padding:0;height:100%;max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
 a{color:inherit;text-decoration:none;}
 button{font-family:inherit;cursor:pointer;}
 input,select,textarea{font-family:inherit;}
@@ -136,7 +140,7 @@ table.dtbl tr:hover td{background:var(--surface2);}
 .career-dot.current{background:var(--theme-brand);box-shadow:0 0 0 4px rgba(37,99,235,.2);}
 .career-dot.past{background:var(--muted2);}
 
-#appShell{display:flex;height:100vh;width:100%;}
+#appShell{display:flex;height:100vh;height:100dvh;width:100%;}
 #sidebar{width:250px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:18px 14px;transition:.2s;}
 #sidebar .brand{display:flex;align-items:center;gap:10px;padding:6px 6px 18px;}
 #sidebar .brand .logo{width:34px;height:34px;border-radius:9px;background:var(--theme-brand);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;}
@@ -164,8 +168,8 @@ table.dtbl tr:hover td{background:var(--surface2);}
 #mobileTopbar{display:none;}
 .sidebar-scrim{display:none;}
 @media(max-width:900px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:150;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.2);}
-  #sidebar.open{transform:translateX(0);}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:150;transform:translateX(-105%);box-shadow:none;visibility:hidden;transition:transform .2s,visibility .2s;}
+  #sidebar.open{transform:translateX(0);box-shadow:0 0 40px rgba(0,0,0,.25);visibility:visible;}
   .sidebar-scrim.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:140;}
   #mobileTopbar{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 14px;border-bottom:1px solid var(--border);background:var(--surface);}
   #topbar{display:none;}
@@ -246,7 +250,7 @@ table.dtbl tr:hover td{background:var(--surface2);}
 .footer-grid a{display:block;font-size:13px;color:var(--ink2);padding:5px 0;}
 .footer-bottom{border-top:1px solid var(--border);padding-top:20px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 
-#v-login,#v-forcepw{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
+#v-login,#v-forcepw{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
 .auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:36px;box-shadow:0 20px 60px rgba(20,30,60,.08);}
 .auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:26px;justify-content:center;}
 .pwd-wrap{position:relative;}
@@ -265,6 +269,95 @@ table.dtbl tr:hover td{background:var(--surface2);}
 .chart-bars .cb-val{font-size:11px;font-weight:700;color:var(--ink2);white-space:nowrap;}
 .chart-bars .cb-bar{width:100%;max-width:34px;border-radius:8px 8px 4px 4px;transition:height .3s ease;}
 .chart-bars .cb-label{font-size:10px;color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
+
+/* ============================ MOBILE / RESPONSIVE ============================ */
+img,svg,video,canvas{max-width:100%;}
+.table-wrap{-webkit-overflow-scrolling:touch;}
+#contentScroll{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+#mobileTopbar{position:sticky;top:0;z-index:100;padding-top:env(safe-area-inset-top);height:auto;min-height:56px;}
+@media(max-width:900px){
+  #sidebar{width:min(290px,86vw);padding-top:calc(18px + env(safe-area-inset-top));padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+  #sidebar .nav-item{padding:13px 14px;}
+  #mobileTopbar .btn{min-width:44px;min-height:44px;font-size:18px;}
+  #contentScroll{padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+  .lp-nav-links{display:none;}
+  .container{padding:0 18px;}
+  .section{padding:52px 0;}
+  .section h2{font-size:26px;}
+  .section p.sub{font-size:15px;margin-bottom:32px;}
+  .lp-hero{padding:56px 0 40px;}
+  .dash-preview{margin-top:36px;padding:12px;}
+  .cta-band{padding:40px 22px;border-radius:18px;}
+}
+@media(max-width:640px){
+  /* iOS zooms into inputs under 16px */
+  .fc,input,select,textarea{font-size:16px !important;}
+  .btn{min-height:44px;}
+  .btn-sm{min-height:40px;}
+  .fc{padding:12px 13px;}
+  .lp-nav-inner{height:60px;}
+  .lp-hero h1{font-size:30px;}
+  .lp-hero .cta-row .btn{flex:1 1 100%;}
+  .footer-grid{grid-template-columns:1fr 1fr;}
+  .footer-bottom{flex-direction:column;}
+  .auth-card{padding:24px 20px;}
+  #v-login,#v-forcepw{padding:14px;align-items:flex-start;padding-top:max(24px,env(safe-area-inset-top));}
+
+  /* page header + actions */
+  .page-head{flex-direction:column;align-items:stretch;}
+  .page-actions{width:100%;}
+  .page-actions .btn{flex:1 1 auto;}
+  .page-actions .fc,.fc[style*="width"]{width:100% !important;max-width:100% !important;}
+  .fg[style*="max-width"]{max-width:100% !important;}
+
+  /* KPI cards stay 2-up, everything else stacks */
+  .grid-4{grid-template-columns:1fr 1fr;gap:10px;}
+  .grid-3,.grid-2{grid-template-columns:1fr;}
+  .stat-card{padding:14px;gap:8px;}
+  .stat-card .sc-num{font-size:21px;word-break:break-word;}
+  .stat-card .sc-label{font-size:12px;}
+  .stat-card .sc-icon{width:32px;height:32px;}
+  .card{padding:16px;}
+  .rg2{grid-template-columns:1fr !important;gap:14px !important;}
+  .gt-label{width:84px !important;}
+  .chart-bars{gap:5px;}
+  .chart-bars .cb-val{font-size:9px;}
+  .profile-header{padding:22px 18px;flex-direction:column;align-items:flex-start;text-align:left;}
+
+  /* modals become full-width bottom sheets */
+  .modal-backdrop{padding:0;align-items:flex-end;}
+  .modal{max-width:100% !important;border-radius:20px 20px 0 0;max-height:94vh;max-height:94dvh;}
+  .modal-head{padding:14px 16px;}
+  .modal-body{padding:16px;}
+  .modal-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));flex-wrap:wrap;}
+  .modal-foot .btn{flex:1 1 calc(50% - 10px);}
+
+  /* toasts span the width */
+  #toastHost{left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));}
+  .toast{min-width:0;width:100%;}
+
+  /* tables become stacked cards (labels injected by JS) */
+  .table-wrap{border:none;overflow:visible;background:transparent;}
+  table.dtbl,table.dtbl tbody,table.dtbl tr,table.dtbl td{display:block;width:100%;}
+  table.dtbl thead{display:none;}
+  table.dtbl tr{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:6px 14px;margin-bottom:12px;}
+  table.dtbl tr:hover td{background:transparent;}
+  table.dtbl td{display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:right;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;min-width:0;word-break:break-word;}
+  table.dtbl td:last-child{border-bottom:none;}
+  table.dtbl td::before{content:attr(data-label);flex-shrink:0;max-width:42%;text-align:left;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);}
+  table.dtbl td[data-label=""]::before,table.dtbl td:not([data-label])::before{display:none;}
+  table.dtbl td > div,table.dtbl td > span{min-width:0;}
+  table.dtbl td .btn{min-height:38px;}
+  table.dtbl td[data-label="Actions"]{flex-wrap:wrap;justify-content:flex-end;}
+}
+@media(max-width:380px){
+  .grid-4{grid-template-columns:1fr;}
+  .footer-grid{grid-template-columns:1fr;}
+  .modal-foot .btn{flex:1 1 100%;}
+}
+@media (hover:none){
+  .feat-card:hover{transform:none;}
+}
 </style>
 </head>
 <body>
@@ -552,7 +645,7 @@ var STATE = { user:null, org:null, plan:null, sessionToken:null, currentPage:'da
  *   2. Copy the Web app URL (ends in /exec) and paste it below.
  * Leave it empty and outside GAS => the app runs in offline DEMO mode.
  * ------------------------------------------------------------------------- */
-var BACKEND_URL = '';   // ← paste your GAS /exec URL here (leave empty when deployed in GAS)
+var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwT9P8lgj4inxcVE03NlRXFNkoLNas--VcgfRIGSEj6PGqXqK-jDiSM8k2UfQwTH9bFAw/exec';   // ← paste your GAS /exec URL here (leave empty when deployed in GAS)
 
 var IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
 var APP = {
@@ -1136,7 +1229,7 @@ function openMemberViewModal(m){
     '<div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">' + avatarHtml(m.FullName,'lg') +
       '<div><h3 style="margin:0 0 6px;">'+esc(m.FullName)+'</h3><div style="display:flex;gap:8px;flex-wrap:wrap;">'+tagStatus(m.Status)+'<span class="tag tag-blue">'+esc(m.MembershipType||'Regular')+'</span></div></div>' +
     '</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:14px;">' +
+    '<div class="rg2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:14px;">' +
       '<div><div style="color:var(--muted);font-size:12px;margin-bottom:3px;">Email</div><div style="font-weight:600;">'+esc(m.Email)+'</div></div>' +
       '<div><div style="color:var(--muted);font-size:12px;margin-bottom:3px;">Phone</div><div style="font-weight:600;">'+esc(m.Phone||'—')+'</div></div>' +
       '<div><div style="color:var(--muted);font-size:12px;margin-bottom:3px;">Directorate</div><div style="font-weight:600;">'+esc(directorateName(m.DirectorateID))+'</div></div>' +
@@ -1528,7 +1621,7 @@ function ganttChartHtml(tasks, milestones){
       ? '<div style="position:absolute;left:'+leftPct+'%;top:50%;transform:translate(-50%,-50%) rotate(45deg);width:12px;height:12px;background:'+color+';"></div>'
       : '<div style="position:absolute;left:'+leftPct+'%;width:'+widthPct+'%;top:4px;bottom:4px;background:'+color+';border-radius:6px;"></div>';
     return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
-      '<div style="width:140px;flex-shrink:0;font-size:12px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(i.label)+'">'+(i.type==='milestone'?'🚩 ':'')+esc(i.label)+'</div>' +
+      '<div class="gt-label" style="width:140px;flex-shrink:0;font-size:12px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(i.label)+'">'+(i.type==='milestone'?'🚩 ':'')+esc(i.label)+'</div>' +
       '<div style="position:relative;flex:1;height:22px;background:var(--surface3);border-radius:6px;">'+barHtml+'</div>' +
     '</div>';
   }).join('');
@@ -1633,7 +1726,7 @@ function renderProjectDetail(projectId){
 
       '<div class="card" style="margin-top:20px;"><div class="page-head" style="margin-bottom:12px;"><h4 style="margin:0;">Milestones</h4>'+(canManageProject?'<button class="btn btn-primary btn-sm" id="addMilestoneBtn">+ Add Milestone</button>':'')+'</div>' +
         '<div style="margin-bottom:22px;"><strong style="font-size:13px;">Timeline (Gantt)</strong><div style="margin-top:10px;">'+ganttChartHtml(tasks, milestones)+'</div></div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
+        '<div class="rg2" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
           '<div><strong style="font-size:13px;">Milestone list</strong><div id="milestonesTableHost" style="margin-top:10px;"></div></div>' +
           '<div><strong style="font-size:13px;">Milestone journey</strong><div class="career-line" id="milestonesTimelineHost" style="margin-top:14px;"></div></div>' +
         '</div>' +
@@ -2645,6 +2738,32 @@ function demoResp(action, data){
     }, 350);
   });
 }
+
+
+/* Mobile: copy each <th> label onto its cells so tables can render as cards */
+function labelTables(root){
+  var tbls = (root||document).querySelectorAll('table.dtbl');
+  for(var i=0;i<tbls.length;i++){
+    var t = tbls[i], ths = t.querySelectorAll('thead th'), labels = [];
+    for(var h=0;h<ths.length;h++) labels.push((ths[h].textContent||'').replace(/^\s+|\s+$/g,''));
+    var rows = t.querySelectorAll('tbody tr');
+    for(var r=0;r<rows.length;r++){
+      var cells = rows[r].children;
+      for(var c=0;c<cells.length;c++){
+        if(cells[c].getAttribute('data-label')===null) cells[c].setAttribute('data-label', labels[c]||'');
+      }
+    }
+  }
+}
+(function(){
+  var host = document.body, pending = false;
+  var obs = new MutationObserver(function(){
+    if(pending) return; pending = true;
+    setTimeout(function(){ pending = false; labelTables(host); }, 30);
+  });
+  obs.observe(host, { childList:true, subtree:true });
+  labelTables(host);
+})();
 
 wireAll();
 </script>
