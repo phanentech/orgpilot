@@ -762,10 +762,6 @@ img,svg,video,canvas{max-width:100%;}
     <button class="btn btn-ghost" id="backToLanding" style="width:100%;margin-top:10px;">← Back to home</button>
     <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--muted);">New here? <a href="#" id="loginToSignup" style="color:var(--theme-brand);font-weight:700;">Start your free trial</a></div>
 
-    <div style="margin-top:20px;text-align:center;">
-      <button type="button" id="demoToggle" style="background:none;border:none;color:var(--muted2);font-size:11px;cursor:pointer;">Show demo accounts</button>
-      <div id="demoList" style="display:none;text-align:left;margin-top:10px;background:var(--surface2);border-radius:10px;padding:10px;font-size:11px;color:var(--muted);max-height:160px;overflow-y:auto;"></div>
-    </div>
   </div>
 </div>
 
@@ -2654,13 +2650,6 @@ function wireAll(){
   document.getElementById('pwdToggle').addEventListener('click', function(){
     var f = document.getElementById('loginPassword'); var show = f.type==='password';
     f.type = show?'text':'password'; document.getElementById('pwdToggle').textContent = show?'HIDE':'SHOW';
-  });
-  document.getElementById('demoToggle').addEventListener('click', function(){
-    var box = document.getElementById('demoList');
-    var open = box.style.display==='block';
-    if(!open) box.innerHTML = DEMO_ACCOUNTS_FALLBACK.map(function(a){ return '<div style="padding:4px 0;cursor:pointer;" data-demo-email="'+a.email+'" data-demo-pass="'+a.pass+'">'+a.role+' — '+a.email+' / '+a.pass+'</div>'; }).join('');
-    box.style.display = open?'none':'block';
-    document.getElementById('demoToggle').textContent = open?'Show demo accounts':'Hide demo accounts';
   });
   document.getElementById('logoutBtn').addEventListener('click', doLogout);
   document.getElementById('fpwSubmitBtn').addEventListener('click', submitForcePasswordChange);
