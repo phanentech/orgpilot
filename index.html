@@ -593,6 +593,7 @@ img,svg,video,canvas{max-width:100%;}
   .lp-fl.f1{left:-4px;}.lp-fl.f2{left:-4px;bottom:70px;}.lp-built{font-size:15px;gap:12px;flex-wrap:wrap;}
   .lp2 .lp-cta{padding:44px 22px;}
 }
+@media print{#sidebar,#topbar,#mobileTopbar,#trialBar,.sidebar-scrim,.rp-top button,#toastHost{display:none !important;}#contentScroll{padding:0 !important;overflow:visible !important;height:auto !important;}.rp-card,.rp-stat{break-inside:avoid;}}
 </style>
 </head>
 <body>
@@ -1131,6 +1132,8 @@ function showView(v){
 function boot(){
   var pubSlug = window.__PUBLIC_SITE__ || (function(){ try{ return new URLSearchParams(location.search).get('site'); }catch(e){ return null; } })();
   if(pubSlug){ bootPublicSite(pubSlug); return; }
+  var joinRef = (function(){ try{ return new URLSearchParams(location.search).get('join'); }catch(e){ return null; } })();
+  if(joinRef){ bootPublicJoin(joinRef); return; }
   buildLandingContent();
   loadPublicInfo();
   var savedToken = null;
@@ -1410,9 +1413,9 @@ function renderMembers(){
   el.innerHTML =
     '<div class="page-head"><div><div class="page-actions" style="margin-bottom:8px;">' +
       '<input class="fc" id="memberSearch" placeholder="Search by name, email or phone…" style="width:260px;">' +
-      '<select class="fc" id="memberStatusFilter" style="width:140px;"><option value="">All Status</option><option>Active</option><option>Inactive</option></select>' +
+      '<select class="fc" id="memberStatusFilter" style="width:140px;"><option value="">All Status</option><option>Active</option><option>Inactive</option><option>Pending</option></select>' +
     '</div></div>' +
-    (canManage ? '<div class="page-actions"><button class="btn btn-outline btn-sm" id="exportMembersBtn">Export CSV</button><button class="btn btn-primary" id="addMemberBtn">+ Add Member</button></div>' : '') +
+    (canManage ? '<div class="page-actions"><button class="btn btn-outline btn-sm" id="exportMembersBtn">Export CSV</button><button class="btn btn-outline btn-sm" id="inviteLinkBtn">'+ic('send')+' Invite link</button><button class="btn btn-outline btn-sm" id="importMembersBtn">'+ic('upload')+' Import members</button><button class="btn btn-primary" id="addMemberBtn">+ Add Member</button></div>' : '') +
     '</div>' +
     '<div id="membersTableHost">'+loadingRows(6)+'</div>';
 
@@ -1420,6 +1423,8 @@ function renderMembers(){
   document.getElementById('memberStatusFilter').addEventListener('change', renderMembersTable);
   if(canManage){
     document.getElementById('addMemberBtn').addEventListener('click', function(){ openMemberForm(); });
+    document.getElementById('inviteLinkBtn').addEventListener('click', openInviteLink);
+    document.getElementById('importMembersBtn').addEventListener('click', openImportMembers);
     document.getElementById('exportMembersBtn').addEventListener('click', function(){ exportCsv(STATE.cache.members||[], ['MemberID','FullName','Email','Phone','Status','DuesStatus'], 'members'); });
   }
   loadMembers();
@@ -1439,7 +1444,8 @@ function renderMembersTable(){
   var canManage = can('members.manage');
   var host = document.getElementById('membersTableHost');
   if(!filtered.length){ host.innerHTML = emptyState('👥','No members found','Try adjusting your search or filters.', canManage?'<button class="btn btn-primary btn-sm" id="emptyAddMember">+ Add Member</button>':''); var b=document.getElementById('emptyAddMember'); if(b) b.addEventListener('click', function(){ openMemberForm(); }); return; }
-  var html = '<div class="table-wrap"><table class="dtbl"><thead><tr><th>ID</th><th>Member</th><th>Contact</th><th>Directorate</th><th>Date Joined</th><th>Dues</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+  var pendN = rows.filter(function(x){ return x.Status==='Pending'; }).length;
+  var html = (canManage && pendN && status!=='Pending' ? '<div class="card" style="margin:0 0 12px;background:var(--warn-l);border-color:transparent;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>'+pendN+' join request'+(pendN===1?'':'s')+'</strong> waiting for your approval.</span><button class="btn btn-outline btn-sm" id="pendReview">Review</button></div>' : '') + '<div class="table-wrap"><table class="dtbl"><thead><tr><th>ID</th><th>Member</th><th>Contact</th><th>Directorate</th><th>Date Joined</th><th>Dues</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
   filtered.forEach(function(m){
     var wa = waLink(m.Phone);
     html += '<tr>' +
@@ -1453,7 +1459,8 @@ function renderMembersTable(){
       '<td><div style="display:flex;gap:6px;flex-wrap:wrap;">' +
         (wa ? '<a class="btn btn-success btn-sm" href="'+wa+'" target="_blank" title="Message on WhatsApp">💬</a>' : '') +
         '<button class="btn btn-outline btn-sm" data-mact="view" data-id="'+m.MemberID+'">View</button>' +
-        (canManage ? '<button class="btn btn-ghost btn-sm" data-mact="edit" data-id="'+m.MemberID+'">Edit</button>' +
+        (canManage && m.Status==='Pending' ? '<button class="btn btn-success btn-sm" data-mact="approve" data-id="'+m.MemberID+'">Approve</button><button class="btn btn-ghost btn-sm" style="color:var(--danger);" data-mact="decline" data-id="'+m.MemberID+'">Decline</button>' : '') +
+        (canManage && m.Status!=='Pending' ? '<button class="btn btn-ghost btn-sm" data-mact="edit" data-id="'+m.MemberID+'">Edit</button>' +
           '<button class="btn btn-ghost btn-sm" data-mact="birthday" data-id="'+m.MemberID+'">🎂</button>' +
           '<button class="btn btn-ghost btn-sm" data-mact="anniv" data-id="'+m.MemberID+'">🎉</button>' +
           '<button class="btn btn-ghost btn-sm" data-mact="dues" data-id="'+m.MemberID+'">🔔</button>' +
@@ -1464,6 +1471,7 @@ function renderMembersTable(){
   });
   html += '</tbody></table></div>';
   host.innerHTML = html;
+  var pr = host.querySelector('#pendReview'); if(pr) pr.addEventListener('click', function(){ document.getElementById('memberStatusFilter').value = 'Pending'; renderMembersTable(); });
   Array.prototype.forEach.call(host.querySelectorAll('[data-mact]'), function(btn){
     btn.addEventListener('click', function(){ handleMemberAction(btn.dataset.mact, btn.dataset.id); });
   });
@@ -1473,6 +1481,7 @@ function directorateName(id){
   return d ? d.Name : '—';
 }
 function handleMemberAction(act, id){
+  if(act==='approve' || act==='decline') return memberDecision(act, id);
   var m = (STATE.cache.members||[]).filter(function(x){return x.MemberID===id;})[0];
   if(act==='view') return openMemberViewModal(m);
   if(act==='edit') return openMemberForm(m);
@@ -3238,7 +3247,7 @@ function applyBranding(b, logo){
     var orgLogo = n.getAttribute('data-brand-logo') === 'org' && STATE.org && STATE.org.logo;
     setLogoEl(n, orgLogo || STATE.logo, orgLogo ? '' : letter);
   });
-  var tag = document.querySelector('.lp-hero h1'); if(tag && br.tagline && br.tagline !== BRANDING_FALLBACK.tagline){ var parts = String(br.tagline).split(/(?<=[.!?])\s+/); tag.innerHTML = parts.length > 1 ? esc(parts[0])+' <span class="grad">'+esc(parts[1])+'</span> '+esc(parts.slice(2).join(' ')) : '<span class="grad">'+esc(br.tagline)+'</span>'; }
+  var tag = document.querySelector('.lp-hero h1'); if(tag && br.tagline) tag.textContent = br.tagline;
   var ft = $id('lpFooterText'); if(ft) ft.textContent = br.footerText;
 }
 function loadPublicInfo(){
@@ -5562,6 +5571,443 @@ function openRolePeople(r){
 }
 
 /* ============================================================================
+ * MEMBER ONBOARDING: bulk import from a spreadsheet, invite link, join requests
+ * ==========================================================================*/
+var IMP_COLS = ['Full Name','Email','Phone','Directorate','Membership Type','Join Date','Status','Dues Status'];
+var IMP_SYN = { fullName:['full name','fullname','name','member name','member','names'], first:['first name','firstname','given name'], last:['last name','lastname','surname','family name'],
+  email:['email','e-mail','email address','mail'], phone:['phone','phone number','mobile','mobile number','telephone','tel','whatsapp','phone no','contact'],
+  directorate:['directorate','committee','department','unit','group','team'], membershipType:['membership type','type','category','membership'],
+  joinDate:['join date','date joined','joined','joining date','date of joining','start date'], status:['status','member status'], duesStatus:['dues status','dues','payment status'] };
+var IMP = { rows:[], dirs:[], fileName:'' };
+
+function parseDelimited(text){
+  text = String(text || '').replace(/^﻿/, '');
+  var first = text.split(/\r?\n/)[0] || '', tabs = first.split('\t').length, semi = first.split(';').length, comma = first.split(',').length;
+  var delim = tabs > 1 ? '\t' : (semi > comma ? ';' : ',');
+  var rows = [], row = [], cur = '', q = false, i, ch;
+  for(i = 0; i < text.length; i++){
+    ch = text.charAt(i);
+    if(q){ if(ch === '"'){ if(text.charAt(i+1) === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if(ch === '"') q = true;
+    else if(ch === delim){ row.push(cur); cur = ''; }
+    else if(ch === '\n' || ch === '\r'){ if(ch === '\r' && text.charAt(i+1) === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
+    else cur += ch;
+  }
+  if(cur !== '' || row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){ return String(c).trim() !== ''; }); });
+}
+function impNorm(h){ return String(h || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function impDate(v){
+  if(v instanceof Date){ return isNaN(v.getTime()) ? '' : v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2); }
+  v = String(v == null ? '' : v).trim(); if(!v) return '';
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(v)){ var p = v.slice(0,10).split('-'); return p[0]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[2]).slice(-2); }
+  var m = v.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){ var d = +m[1], mo = +m[2], y = +m[3]; if(y < 100) y += 2000; if(mo > 12){ var t = d; d = mo; mo = t; } if(mo < 1 || mo > 12 || d < 1 || d > 31) return ''; return y+'-'+('0'+mo).slice(-2)+'-'+('0'+d).slice(-2); }
+  if(/^\d{5}$/.test(v)){ var dt = new Date(Math.round((Number(v) - 25569) * 86400000)); return isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0,10); }
+  var pd = new Date(v); return isNaN(pd.getTime()) ? '' : pd.getFullYear()+'-'+('0'+(pd.getMonth()+1)).slice(-2)+'-'+('0'+pd.getDate()).slice(-2);
+}
+function impPhone(v){
+  v = String(v == null ? '' : v).replace(/[\s\-().]/g, ''); if(!v) return '';
+  if(/^[789]\d{9}$/.test(v)) v = '0' + v;
+  return v;
+}
+function impDirId(name){
+  name = String(name || '').trim().toLowerCase(); if(!name) return null;
+  var d = IMP.dirs.filter(function(x){ return String(x.Name).toLowerCase() === name || x.DirectorateID === name.toUpperCase(); })[0];
+  return d || false;
+}
+function impBuild(table){
+  if(!table || table.length < 2) return { error:'We could not find any member rows. The first row must be the column headings, followed by one member per row.' };
+  var head = table[0].map(impNorm), idx = {}, k;
+  Object.keys(IMP_SYN).forEach(function(key){ idx[key] = -1; head.forEach(function(h, i){ if(idx[key] === -1 && IMP_SYN[key].indexOf(h) !== -1) idx[key] = i; }); });
+  if(idx.email === -1) return { error:'We could not find an "Email" column. Use the template and keep the column headings as they are.' };
+  if(idx.fullName === -1 && idx.first === -1) return { error:'We could not find a "Full Name" column. Use the template and keep the column headings as they are.' };
+  var seen = {}, have = {}, out = [];
+  (STATE.cache.members || []).forEach(function(m){ have[String(m.Email || '').toLowerCase()] = 1; });
+  table.slice(1).forEach(function(r, n){
+    var cell = function(key){ return idx[key] === -1 ? '' : (r[idx[key]] == null ? '' : r[idx[key]]); };
+    var name = idx.fullName !== -1 ? String(cell('fullName')).trim() : [cell('first'), cell('last')].join(' ').trim().replace(/\s+/g, ' ');
+    var email = String(cell('email')).trim().toLowerCase(), dirName = String(cell('directorate')).trim(), dir = impDirId(dirName);
+    var st = String(cell('status')).trim().toLowerCase(), dues = String(cell('duesStatus')).trim().toLowerCase();
+    var row = { n:n + 2, fullName:name, email:email, phone:impPhone(cell('phone')), directorate:dirName, directorateId:dir ? dir.DirectorateID : '', membershipType:String(cell('membershipType')).trim() || 'Regular',
+      joinDate:impDate(cell('joinDate')), status:/^(inactive|no|suspended|lapsed|left|dormant)$/.test(st) ? 'Inactive' : 'Active', duesStatus:dues === 'paid' || dues === 'yes' ? 'Paid' : 'Pending', state:'ok', msg:'Ready' };
+    if(!name && !email) return;
+    if(/@example\.(com|org|net)$/.test(email)){ row.state = 'skip'; row.msg = 'Example row, ignored'; }
+    else if(name.length < 2){ row.state = 'error'; row.msg = 'Name is missing'; }
+    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ row.state = 'error'; row.msg = 'Email is not valid'; }
+    else if(have[email]){ row.state = 'error'; row.msg = 'Already a member'; }
+    else if(seen[email]){ row.state = 'error'; row.msg = 'Duplicate of row ' + seen[email]; }
+    else {
+      seen[email] = row.n;
+      if(dirName && dir === false){ row.state = 'warn'; row.msg = 'Directorate "' + dirName + '" not found, left blank'; }
+      else if(cell('joinDate') && !row.joinDate){ row.state = 'warn'; row.msg = 'Join date not understood, today is used'; }
+    }
+    out.push(row);
+  });
+  if(!out.length) return { error:'No member rows were found under the headings.' };
+  return { rows:out };
+}
+function loadXlsxLib(cb){
+  if(window.XLSX) return cb(null);
+  var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = function(){ cb(null); }; s.onerror = function(){ cb('Could not load the Excel reader. Check your internet connection, or save the sheet as CSV and upload that instead.'); };
+  document.head.appendChild(s);
+}
+function impReadFile(file, cb){
+  var name = String(file.name || '').toLowerCase(), fr = new FileReader();
+  if(/\.(xlsx|xls)$/.test(name)){
+    loadXlsxLib(function(err){
+      if(err) return cb(err);
+      fr.onload = function(){
+        try{
+          var wb = XLSX.read(fr.result, { type:'array', cellDates:true }), ws = wb.Sheets[wb.SheetNames[0]];
+          var aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:'' });
+          cb(null, aoa.filter(function(r){ return r.some(function(c){ return String(c).trim() !== ''; }); }));
+        }catch(e){ cb('That Excel file could not be read. Try saving it as CSV.'); }
+      };
+      fr.readAsArrayBuffer(file);
+    });
+  } else {
+    fr.onload = function(){ cb(null, parseDelimited(fr.result)); };
+    fr.readAsText(file);
+  }
+}
+function downloadMemberTemplate(){
+  var rows = [
+    { 'Full Name':'Ada Obi', 'Email':'ada.obi@example.com', 'Phone':'08031234567', 'Directorate':(IMP.dirs[0] && IMP.dirs[0].Name) || 'Membership', 'Membership Type':'Regular', 'Join Date':'2024-03-10', 'Status':'Active', 'Dues Status':'Paid' },
+    { 'Full Name':'Tunde Bello', 'Email':'tunde.bello@example.com', 'Phone':'08051234567', 'Directorate':(IMP.dirs[1] && IMP.dirs[1].Name) || 'Programmes', 'Membership Type':'Full', 'Join Date':'2023-11-02', 'Status':'Active', 'Dues Status':'Pending' }
+  ];
+  exportCsv(rows, IMP_COLS, 'OrgPilot-member-import-template');
+}
+function openImportMembers(){
+  IMP.rows = []; IMP.fileName = '';
+  var m = openModal('xl', 'Import members from a spreadsheet', '<div id="impBox">' + loadingRows(3) + '</div>', '');
+  api('directorates.list', {}).then(function(d){ IMP.dirs = d || []; STATE.cache.directorates = IMP.dirs; }).catch(function(){ IMP.dirs = []; })
+    .then(function(){ if(!STATE.cache.members) return api('members.list', {}).then(function(r){ STATE.cache.members = r; }).catch(function(){}); })
+    .then(function(){ impStep1(m); });
+}
+function impStep1(m){
+  var box = m.querySelector('#impBox');
+  box.innerHTML =
+    '<div class="grid-2" style="align-items:stretch;gap:14px;">' +
+      '<div class="card" style="margin:0;"><h4 style="margin:0 0 6px;">1. Get the template</h4><p style="font-size:13px;color:var(--muted);margin:0 0 12px;">Download it, open it in Excel or Google Sheets, and paste your members in. Keep the column headings as they are.</p>' +
+        '<button class="btn btn-outline" id="impTpl">' + ic('download') + ' Download template (CSV)</button>' +
+        hint('Needs: <strong>Full Name</strong> and <strong>Email</strong>. Optional: Phone, Directorate (must match a directorate name), Membership Type, Join Date, Status, Dues Status. Delete the two example rows.') + '</div>' +
+      '<div class="card" style="margin:0;"><h4 style="margin:0 0 6px;">2. Upload your file</h4><p style="font-size:13px;color:var(--muted);margin:0 0 12px;">CSV or Excel (.xlsx). You can review everything before anything is saved.</p>' +
+        '<label class="btn btn-primary" style="cursor:pointer;">' + ic('upload') + ' Choose file<input type="file" id="impFile" accept=".csv,.txt,.xlsx,.xls,text/csv" style="display:none;"></label>' +
+        '<div id="impFileName" style="font-size:12px;color:var(--muted);margin-top:8px;"></div></div>' +
+    '</div>' +
+    '<div class="fg" style="margin-top:16px;"><label class="fl">Or paste rows copied from Excel or Google Sheets (include the heading row)</label><textarea class="fc" id="impPaste" rows="4" placeholder="Full Name\tEmail\tPhone&#10;Ada Obi\tada@mail.com\t08031234567"></textarea>' +
+      '<div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" id="impPasteGo">Review pasted rows</button></div></div>' +
+    '<div id="impErr" style="display:none;color:var(--danger);font-size:13px;margin-top:8px;"></div>';
+  var fail = function(t){ var e = box.querySelector('#impErr'); e.textContent = t; e.style.display = 'block'; };
+  box.querySelector('#impTpl').addEventListener('click', downloadMemberTemplate);
+  var go = function(err, table, name){ if(err) return fail(err); var r = impBuild(table); if(r.error) return fail(r.error); IMP.rows = r.rows; IMP.fileName = name || 'pasted rows'; impStep2(m); };
+  box.querySelector('#impFile').addEventListener('change', function(e){
+    var f = e.target.files[0]; if(!f) return; box.querySelector('#impFileName').textContent = 'Reading ' + f.name + '…';
+    impReadFile(f, function(err, table){ go(err, table, f.name); });
+  });
+  box.querySelector('#impPasteGo').addEventListener('click', function(){ var t = box.querySelector('#impPaste').value; if(!t.trim()) return fail('Paste your rows first.'); go(null, parseDelimited(t), 'pasted rows'); });
+}
+function impStep2(m){
+  var box = m.querySelector('#impBox'), rows = IMP.rows, ready = rows.filter(function(r){ return r.state === 'ok' || r.state === 'warn'; }), bad = rows.filter(function(r){ return r.state === 'error'; }), skip = rows.filter(function(r){ return r.state === 'skip'; }), warn = rows.filter(function(r){ return r.state === 'warn'; });
+  var cls = { ok:'green', warn:'amber', error:'red', skip:'gray' };
+  var html = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;"><span class="tag tag-green">' + ready.length + ' ready to import</span>' + (warn.length ? '<span class="tag tag-amber">' + warn.length + ' with a warning</span>' : '') + (bad.length ? '<span class="tag tag-red">' + bad.length + ' will be skipped</span>' : '') + (skip.length ? '<span class="tag tag-gray">' + skip.length + ' example row' + (skip.length === 1 ? '' : 's') + ' ignored</span>' : '') + '<span style="font-size:12px;color:var(--muted);">from ' + esc(IMP.fileName) + '</span></div>';
+  html += '<div class="table-wrap" style="max-height:320px;overflow:auto;"><table class="dtbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Directorate</th><th>Check</th></tr></thead><tbody>' +
+    rows.slice(0, 200).map(function(r){ return '<tr><td style="color:var(--muted);">' + r.n + '</td><td>' + esc(r.fullName) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.phone) + '</td><td>' + esc(r.directorate) + '</td><td><span class="tag tag-' + cls[r.state] + '">' + esc(r.msg) + '</span></td></tr>'; }).join('') + '</tbody></table></div>' +
+    (rows.length > 200 ? hint('Showing the first 200 of ' + rows.length + ' rows. All rows will be checked and imported.') : '');
+  html += '<label class="chk" style="margin:14px 0 4px;"><input type="checkbox" id="impEmail" checked><span>Email each new member their sign-in details</span></label>' +
+    hint('Each member gets a temporary password and is asked to change it on first sign-in. If you switch this off, members can use "Forgot password?" on the sign-in page.') +
+    '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="btn btn-ghost" id="impBack">Back</button><button class="btn btn-primary" id="impGo"' + (ready.length ? '' : ' disabled') + '>Import ' + ready.length + ' member' + (ready.length === 1 ? '' : 's') + '</button></div>';
+  box.innerHTML = html;
+  box.querySelector('#impBack').addEventListener('click', function(){ impStep1(m); });
+  box.querySelector('#impGo').addEventListener('click', function(){ impRun(m, ready, bad, box.querySelector('#impEmail').checked); });
+}
+function impRun(m, ready, bad, sendEmail){
+  var box = m.querySelector('#impBox'), total = ready.length, done = 0, created = 0, emailed = 0, emailsSkipped = false, skipped = bad.map(function(r){ return { n:r.n, fullName:r.fullName, email:r.email, reason:r.msg }; });
+  box.innerHTML = '<div style="padding:30px 10px;text-align:center;"><div style="font-weight:700;margin-bottom:12px;" id="impMsg">Importing…</div><div style="height:10px;background:var(--surface3);border-radius:99px;overflow:hidden;max-width:420px;margin:0 auto;"><div id="impBar" style="height:100%;width:0;background:var(--theme-brand);transition:width .3s;"></div></div><div id="impCount" style="font-size:13px;color:var(--muted);margin-top:10px;">0 of ' + total + '</div>' + hint('Please keep this window open until it finishes.') + '</div>';
+  var chunks = [], i; for(i = 0; i < ready.length; i += 25) chunks.push(ready.slice(i, i + 25));
+  var step = function(ci){
+    if(ci >= chunks.length) return finish();
+    api('members.import', { rows:chunks[ci], sendEmail:sendEmail }).then(function(res){
+      created += res.created || 0; emailed += res.emailed || 0; if(res.emailsSkipped) emailsSkipped = true; skipped = skipped.concat(res.skipped || []);
+    }).catch(function(e){
+      chunks[ci].forEach(function(r){ skipped.push({ n:r.n, fullName:r.fullName, email:r.email, reason:(e && e.message) || 'Could not be saved' }); });
+    }).then(function(){
+      done += chunks[ci].length; var p = Math.round(done / total * 100), b = box.querySelector('#impBar'), c = box.querySelector('#impCount');
+      if(b) b.style.width = p + '%'; if(c) c.textContent = done + ' of ' + total; step(ci + 1);
+    });
+  };
+  var finish = function(){
+    api('members.list', {}).then(function(r){ STATE.cache.members = r; if(typeof renderMembersTable === 'function' && $id('membersTableHost')) renderMembersTable(); }).catch(function(){});
+    box.innerHTML = '<div style="text-align:center;padding:16px 6px 8px;"><div style="font-size:40px;">' + (created ? '🎉' : '⚠️') + '</div><h3 style="margin:6px 0;">' + created + ' member' + (created === 1 ? '' : 's') + ' imported</h3>' +
+      '<p style="color:var(--muted);margin:0 0 4px;">' + (sendEmail ? (emailed + ' sign-in email' + (emailed === 1 ? '' : 's') + ' sent.') : 'No emails were sent.') + (emailsSkipped ? ' Some emails could not be sent (daily email limit). Those members can use "Forgot password?".' : '') + '</p></div>' +
+      (skipped.length ? '<div class="card" style="margin:12px 0 0;"><h4 style="margin:0 0 8px;">' + skipped.length + ' row' + (skipped.length === 1 ? ' was' : 's were') + ' not imported</h4><div style="max-height:180px;overflow:auto;font-size:13px;">' + skipped.map(function(s){ return '<div style="padding:4px 0;border-bottom:1px solid var(--border);">Row ' + esc(s.n) + ': <strong>' + esc(s.fullName || s.email || '(empty)') + '</strong> <span style="color:var(--muted);">' + esc(s.reason) + '</span></div>'; }).join('') + '</div><button class="btn btn-outline btn-sm" id="impSkipCsv" style="margin-top:10px;">Download these rows</button></div>' : '') +
+      '<div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-primary" data-action="close-modal">Done</button></div>';
+    var sc = box.querySelector('#impSkipCsv'); if(sc) sc.addEventListener('click', function(){ exportCsv(skipped.map(function(s){ return { Row:s.n, Name:s.fullName, Email:s.email, Reason:s.reason }; }), ['Row','Name','Email','Reason'], 'members-not-imported'); });
+    wireDynamic(box);
+  };
+  step(0);
+}
+
+/* ---------------- invite link ---------------- */
+function mCopy(text, done){
+  var fallback = function(){ var t = document.createElement('textarea'); t.value = text; t.style.cssText = 'position:fixed;left:-999px;'; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); }catch(e){} t.remove(); done(); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+}
+function openInviteLink(){
+  var m = openModal('md', 'Member invite link', '<div id="invBox">' + loadingRows(3) + '</div>', '');
+  var draw = function(s){
+    var box = m.querySelector('#invBox'); if(!box) return;
+    var wa = 'https://wa.me/?text=' + encodeURIComponent('Join ' + s.orgName + ' on ' + brandVal('appName') + ': ' + s.url);
+    var mail = 'mailto:?subject=' + encodeURIComponent('Join ' + s.orgName) + '&body=' + encodeURIComponent('Hi,\n\nPlease use this link to create your member account:\n' + s.url + '\n\nThank you.');
+    box.innerHTML =
+      '<p style="margin:0 0 12px;color:var(--muted);font-size:14px;">Share this one link with your members. They open it, fill in a short form and create their own account. No typing from you.</p>' +
+      '<div class="fg"><label class="fl">Your link</label><div style="display:flex;gap:8px;"><input class="fc" id="invUrl" readonly value="' + esc(s.url) + '"><button class="btn btn-primary" id="invCopy">' + ic('copy') + ' Copy</button></div></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;"><a class="btn btn-success btn-sm" target="_blank" rel="noopener" href="' + wa + '">Share on WhatsApp</a><a class="btn btn-outline btn-sm" href="' + mail + '">Share by email</a></div>' +
+      '<label class="chk" style="margin-bottom:12px;"><input type="checkbox" id="invOn" ' + (s.enabled ? 'checked' : '') + '><span>Link is switched on</span></label>' +
+      '<div class="fg"><label class="fl">When someone joins</label><select class="fc" id="invMode"><option value="auto"' + (s.approval === 'auto' ? ' selected' : '') + '>Add them as an active member straight away</option><option value="approve"' + (s.approval === 'approve' ? ' selected' : '') + '>Let me approve each person first</option></select></div>' +
+      (s.pending ? '<div class="card" style="margin:0 0 14px;background:var(--warn-l);border-color:transparent;"><strong>' + s.pending + ' request' + (s.pending === 1 ? ' is' : 's are') + ' waiting for approval.</strong> <button class="btn btn-outline btn-sm" id="invReview" style="margin-left:8px;">Review</button></div>' : '') +
+      '<div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:8px;"><button class="btn btn-ghost btn-sm" id="invNew" style="color:var(--danger);">Make a new link</button><button class="btn btn-primary" id="invSave">Save settings</button></div>' +
+      hint('Making a new link switches the old one off. Anyone who has the old link will no longer be able to use it.');
+    box.querySelector('#invCopy').addEventListener('click', function(){ mCopy(s.url, function(){ toast('Link copied.', 'success'); }); });
+    box.querySelector('#invUrl').addEventListener('focus', function(e){ e.target.select(); });
+    box.querySelector('#invSave').addEventListener('click', function(){ api('members.joinSave', { enabled:box.querySelector('#invOn').checked, approval:box.querySelector('#invMode').value }).then(function(r){ toast('Saved.', 'success'); draw(r); }).catch(function(e){ toast(e.message, 'error'); }); });
+    box.querySelector('#invNew').addEventListener('click', function(){ confirmModal('Make a new link', 'The current link will stop working. Continue?', function(){ api('members.joinSave', { regenerate:true }).then(function(r){ toast('New link created.', 'success'); openInviteLink(); }).catch(function(e){ toast(e.message, 'error'); }); }, true); });
+    var rv = box.querySelector('#invReview'); if(rv) rv.addEventListener('click', function(){ closeModal(); var f = $id('memberStatusFilter'); if(f){ f.value = 'Pending'; renderMembersTable(); } });
+  };
+  api('members.joinSettings', {}).then(draw).catch(function(e){ m.querySelector('#invBox').innerHTML = '<p style="color:var(--danger);">' + esc(e.message) + '</p>'; });
+}
+function memberDecision(act, id){
+  var mem = (STATE.cache.members || []).filter(function(x){ return x.MemberID === id; })[0], nm = mem ? mem.FullName : 'this person';
+  var run = function(){ api('members.' + act, { memberId:id }).then(function(){ toast(act === 'approve' ? nm + ' approved and notified.' : 'Request declined.', 'success'); loadMembers(); }).catch(function(e){ toast(e.message, 'error'); }); };
+  if(act === 'approve') run(); else confirmModal('Decline request', 'Decline ' + esc(nm) + '\'s request to join? They will be told by email.', run, true);
+}
+
+/* ---------------- public join page (?join=...) ---------------- */
+function bootPublicJoin(ref){
+  document.documentElement.style.cssText = 'height:auto !important;overflow-y:auto !important;';
+  document.body.style.cssText += ';height:auto !important;overflow-y:visible !important;';
+  ['v-landing','v-login','v-app','v-forcepw','v-signup','v-site'].forEach(function(id){ var el = $id(id); if(el) el.style.display = 'none'; });
+  if(!$id('joinCss')){ var st = document.createElement('style'); st.id = 'joinCss'; st.textContent =
+    '#v-join{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(900px 500px at 80% -10%,rgba(47,91,255,.25),transparent 70%),linear-gradient(160deg,#050A2B,#0A1248 60%,#0B2A9A);font-family:Inter,Segoe UI,sans-serif;}' +
+    '#v-join .jc{width:100%;max-width:440px;background:#fff;color:#0F172A;border-radius:24px;padding:34px 30px;box-shadow:0 40px 90px rgba(0,0,0,.4);}' +
+    '#v-join .jl{width:56px;height:56px;border-radius:16px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:24px;overflow:hidden;background:var(--jb,#2563EB);}#v-join .jl img{width:100%;height:100%;object-fit:cover;}' +
+    '#v-join h1{font-size:23px;text-align:center;margin:0 0 4px;letter-spacing:-.02em;}#v-join .js{text-align:center;color:#64748B;font-size:14px;margin:0 0 22px;}' +
+    '#v-join label{display:block;font-size:13px;font-weight:600;margin:0 0 6px;color:#334155;}#v-join input,#v-join select{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #CBD5E1;border-radius:10px;font-size:16px;font-family:inherit;margin-bottom:14px;background:#fff;color:#0F172A;}' +
+    '#v-join input:focus,#v-join select:focus{outline:2px solid var(--jb,#2563EB);border-color:transparent;}' +
+    '#v-join .jb{width:100%;border:0;border-radius:12px;padding:14px;font:700 16px inherit;font-family:inherit;color:#fff;background:var(--jb,#2563EB);cursor:pointer;}#v-join .jb:disabled{opacity:.6;}' +
+    '#v-join .je{background:#FEE2E2;color:#B91C1C;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:none;}#v-join .jx{text-align:center;padding:10px 0;}#v-join .jx .big{font-size:46px;}' +
+    '#v-join .jf{text-align:center;color:#94A3B8;font-size:12px;margin-top:18px;}'; document.head.appendChild(st); }
+  var host = $id('v-join'); if(!host){ host = document.createElement('div'); host.id = 'v-join'; document.body.appendChild(host); }
+  host.style.display = 'flex';
+  host.innerHTML = '<div class="jc"><div style="text-align:center;color:#64748B;padding:30px 0;">Loading…</div></div>';
+  var card = host.querySelector('.jc'), appHome = location.href.split('?')[0];
+  api('join.info', { ref:ref }).then(function(info){
+    document.title = 'Join ' + info.orgName;
+    host.style.setProperty('--jb', info.brandColor || '#2563EB');
+    var logo = info.logo ? '<img alt="" src="' + String(info.logo).replace(/"/g, '') + '">' : esc((info.orgName || 'O').charAt(0).toUpperCase());
+    card.innerHTML = '<div class="jl">' + logo + '</div><h1>Join ' + esc(info.orgName) + '</h1><p class="js">Create your member account in under a minute.' + (info.approval === 'approve' ? ' A leader will approve your request.' : '') + '</p>' +
+      '<form id="joinForm" autocomplete="on"><div class="je" id="joinErr"></div>' +
+      '<label for="jName">Full name</label><input id="jName" name="fullName" required maxlength="80" autocomplete="name">' +
+      '<label for="jEmail">Email address</label><input id="jEmail" name="email" type="email" required autocomplete="email">' +
+      '<label for="jPhone">Phone number</label><input id="jPhone" name="phone" type="tel" autocomplete="tel" placeholder="080…">' +
+      ((info.directorates || []).length ? '<label for="jDir">Directorate (optional)</label><select id="jDir"><option value="">Not sure yet</option>' + info.directorates.map(function(d){ return '<option value="' + esc(d.id) + '">' + esc(d.name) + '</option>'; }).join('') + '</select>' : '') +
+      '<label for="jPass">Choose a password</label><input id="jPass" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters">' +
+      '<input name="hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;" aria-hidden="true">' +
+      '<button class="jb" type="submit" id="jGo">Join ' + esc(info.orgName) + '</button></form><div class="jf">Powered by ' + esc(brandVal('appName')) + '</div>';
+    var form = card.querySelector('#joinForm');
+    form.addEventListener('submit', function(e){
+      e.preventDefault(); var err = card.querySelector('#joinErr'), btn = card.querySelector('#jGo'); err.style.display = 'none';
+      var v = function(id){ var el = card.querySelector(id); return el ? el.value.trim() : ''; };
+      if(v('#jName').length < 2) { err.textContent = 'Please enter your full name.'; err.style.display = 'block'; return; }
+      if(card.querySelector('#jPass').value.length < 8){ err.textContent = 'Choose a password of at least 8 characters.'; err.style.display = 'block'; return; }
+      btn.disabled = true; btn.textContent = 'Creating your account…';
+      api('join.register', { ref:ref, fullName:v('#jName'), email:v('#jEmail'), phone:v('#jPhone'), directorateId:v('#jDir'), password:card.querySelector('#jPass').value, hp:form.elements.hp.value }).then(function(r){
+        var pend = r && r.status === 'pending';
+        card.innerHTML = '<div class="jx"><div class="big">' + (pend ? '⏳' : '🎉') + '</div><h1>' + (pend ? 'Request received' : 'Welcome aboard!') + '</h1><p class="js">' + (pend ? 'Thank you. A leader will review your request and email you once you are approved.' : 'Your member account is ready. Sign in with the email and password you just chose.') + '</p>' + (pend ? '' : '<a class="jb" style="display:block;text-decoration:none;text-align:center;" href="' + esc(appHome) + '">Sign in</a>') + '</div>';
+      }).catch(function(er){ err.textContent = (er && er.message) || 'Something went wrong. Please try again.'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Join ' + info.orgName; });
+    });
+  }).catch(function(er){ card.innerHTML = '<div class="jx"><div class="big">🔗</div><h1>Link not available</h1><p class="js">' + esc((er && er.message) || 'This join link is not active. Please ask your organisation for a new one.') + '</p></div>'; });
+}
+
+/* ============================================================================
+ * REPORTS WITH VISUALS AND SUMMARIES
+ * ==========================================================================*/
+var RPT_COLORS = ['#2563EB','#10B981','#F59E0B','#8B5CF6','#EF4444','#06B6D4','#EC4899','#84CC16'];
+var RPT = { data:null, loading:false };
+function rMoney(n){ return '₦' + Math.round(Number(n) || 0).toLocaleString('en-NG'); }
+function rShort(n){ n = Number(n) || 0; if(n >= 1e6) return '₦' + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M'; if(n >= 1e3) return '₦' + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'K'; return '₦' + Math.round(n); }
+function rPct(a, b){ return b ? Math.round(a / b * 100) : 0; }
+function rMonthKey(v){ var s = String(v || '').slice(0, 10), d = new Date(s.length === 10 ? s + 'T00:00:00' : v); if(isNaN(d.getTime())) return ''; return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+function rMonthLabel(k){ var p = k.split('-'), n = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return n[+p[1] - 1] + (p[1] === '01' || true ? " '" + p[0].slice(2) : ''); }
+function rLastMonths(n){ var out = [], d = new Date(); d.setDate(1); for(var i = n - 1; i >= 0; i--){ var x = new Date(d.getFullYear(), d.getMonth() - i, 1); out.push(x.getFullYear() + '-' + ('0' + (x.getMonth() + 1)).slice(-2)); } return out; }
+function rCount(rows, fn){ var o = {}; rows.forEach(function(r){ var k = fn(r); if(k === '' || k == null) k = 'Not set'; o[k] = (o[k] || 0) + 1; }); return o; }
+function rItems(obj, sortDesc){ var a = Object.keys(obj).map(function(k, i){ return { label:k, value:obj[k] }; }); if(sortDesc !== false) a.sort(function(x, y){ return y.value - x.value; }); return a.map(function(x, i){ x.color = RPT_COLORS[i % RPT_COLORS.length]; return x; }); }
+
+/* ---- chart primitives (inline SVG, theme aware) ---- */
+function chartDonut(items, o){
+  o = o || {}; var total = items.reduce(function(a, x){ return a + x.value; }, 0), size = 150, r = 54, c = 2 * Math.PI * r, off = 0, fmt = o.fmt || function(v){ return String(v); };
+  if(!total) return '<div style="color:var(--muted);font-size:13px;padding:30px 0;text-align:center;">No data yet</div>';
+  var segs = items.filter(function(x){ return x.value > 0; }).map(function(x){ var len = x.value / total * c, s = '<circle cx="75" cy="75" r="' + r + '" fill="none" stroke="' + x.color + '" stroke-width="22" stroke-dasharray="' + len + ' ' + (c - len) + '" stroke-dashoffset="' + (-off) + '" transform="rotate(-90 75 75)"></circle>'; off += len; return s; }).join('');
+  return '<div class="rp-donut"><svg viewBox="0 0 150 150" width="' + size + '" height="' + size + '" role="img" aria-label="' + esc(o.title || 'Chart') + '"><circle cx="75" cy="75" r="' + r + '" fill="none" stroke="var(--surface3)" stroke-width="22"></circle>' + segs +
+    '<text x="75" y="72" text-anchor="middle" style="font:800 20px Inter,sans-serif;fill:var(--ink);">' + esc(o.center != null ? o.center : fmt(total)) + '</text><text x="75" y="90" text-anchor="middle" style="font:600 10px Inter,sans-serif;fill:var(--muted);">' + esc(o.centerLabel || 'Total') + '</text></svg>' +
+    '<div class="rp-legend">' + items.map(function(x){ return '<div><i style="background:' + x.color + ';"></i><span>' + esc(x.label) + '</span><b>' + esc(fmt(x.value)) + ' <em>' + rPct(x.value, total) + '%</em></b></div>'; }).join('') + '</div></div>';
+}
+function chartBars(items, o){
+  o = o || {}; var fmt = o.fmt || function(v){ return String(v); }, max = Math.max.apply(null, items.map(function(x){ return x.value; }).concat([1]));
+  if(!items.length || items.every(function(x){ return !x.value; })) return '<div style="color:var(--muted);font-size:13px;padding:30px 0;text-align:center;">No data yet</div>';
+  if(o.horizontal){
+    return '<div class="rp-hbars">' + items.map(function(x, i){ return '<div class="rp-hrow"><span class="rp-hl" title="' + esc(x.label) + '">' + esc(x.label) + '</span><div class="rp-ht"><i style="width:' + Math.max(2, x.value / max * 100) + '%;background:' + (x.color || RPT_COLORS[i % RPT_COLORS.length]) + ';"></i></div><b>' + esc(fmt(x.value)) + '</b></div>'; }).join('') + '</div>';
+  }
+  var W = (o.wide && window.innerWidth > 700) ? 1000 : 520, H = (o.wide && window.innerWidth > 700) ? 260 : 210, pl = 6, pr = 6, pt = 24, pb = 30, n = items.length, gw = (W - pl - pr) / n, bw = Math.min((o.wide && window.innerWidth > 700) ? 70 : 46, gw * .62);
+  var bars = items.map(function(x, i){ var h = x.value / max * (H - pt - pb), bx = pl + gw * i + (gw - bw) / 2, by = H - pb - h; return '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, x.value ? 2 : 0).toFixed(1) + '" rx="6" fill="' + (x.color || o.color || RPT_COLORS[0]) + '"></rect>' +
+    (x.value ? '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by - 6).toFixed(1) + '" text-anchor="middle" style="font:700 10px Inter,sans-serif;fill:var(--ink2);">' + esc(fmt(x.value)) + '</text>' : '') +
+    '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" style="font:600 10px Inter,sans-serif;fill:var(--muted);">' + esc(String(x.label).length > ((o.wide && window.innerWidth > 700) ? 18 : 9) ? String(x.label).slice(0, (o.wide && window.innerWidth > 700) ? 17 : 8) + '…' : x.label) + '</text>'; }).join('');
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="rp-svg" role="img" aria-label="' + esc(o.title || 'Bar chart') + '"><line x1="0" y1="' + (H - pb) + '" x2="' + W + '" y2="' + (H - pb) + '" stroke="var(--border)"></line>' + bars + '</svg>';
+}
+function chartLine(items, o){
+  o = o || {}; var fmt = o.fmt || function(v){ return String(v); }, W = (o.wide && window.innerWidth > 700) ? 1000 : 520, H = (o.wide && window.innerWidth > 700) ? 260 : 210, pl = 36, pr = 36, pt = 26, pb = 30, n = items.length, max = Math.max.apply(null, items.map(function(x){ return x.value; }).concat([1]));
+  if(n < 2 || items.every(function(x){ return !x.value; })) return '<div style="color:var(--muted);font-size:13px;padding:30px 0;text-align:center;">Not enough data yet</div>';
+  var col = o.color || RPT_COLORS[0], pts = items.map(function(x, i){ return [pl + (W - pl - pr) * i / (n - 1), H - pb - x.value / max * (H - pt - pb)]; }), path = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+  var gid = 'g' + Math.floor(Math.random() * 1e6);
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="rp-svg" role="img" aria-label="' + esc(o.title || 'Line chart') + '"><defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".28"></stop><stop offset="1" stop-color="' + col + '" stop-opacity="0"></stop></linearGradient></defs>' +
+    '<line x1="0" y1="' + (H - pb) + '" x2="' + W + '" y2="' + (H - pb) + '" stroke="var(--border)"></line><path d="' + path + ' L' + pts[n - 1][0].toFixed(1) + ' ' + (H - pb) + ' L' + pts[0][0].toFixed(1) + ' ' + (H - pb) + ' Z" fill="url(#' + gid + ')"></path><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path>' +
+    pts.map(function(p, i){ return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4" fill="var(--surface)" stroke="' + col + '" stroke-width="2.5"></circle>' + (items[i].value ? '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] - 10).toFixed(1) + '" text-anchor="middle" style="font:700 10px Inter,sans-serif;fill:var(--ink2);">' + esc(fmt(items[i].value)) + '</text>' : '') + '<text x="' + p[0].toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" style="font:600 10px Inter,sans-serif;fill:var(--muted);">' + esc(items[i].label) + '</text>'; }).join('') + '</svg>';
+}
+function rpCard(title, sub, body, span){ return '<div class="rp-card' + (span ? ' span2' : '') + '"><div class="rp-ct">' + esc(title) + '</div>' + (sub ? '<div class="rp-cs">' + esc(sub) + '</div>' : '') + body + '</div>'; }
+function rpStat(icon, label, value, sub, tone){ var tones = { blue:['#DBEAFE','#1D4ED8'], green:['#D1FAE5','#047857'], amber:['#FEF3C7','#B45309'], purple:['#EDE9FE','#6D28D9'], red:['#FEE2E2','#B91C1C'], cyan:['#CFFAFE','#0E7490'] }, t = tones[tone] || tones.blue;
+  return '<div class="rp-stat"><span class="rp-si" style="background:' + t[0] + ';color:' + t[1] + ';">' + ic(icon) + '</span><div><div class="rp-sl">' + esc(label) + '</div><div class="rp-sv">' + esc(value) + '</div>' + (sub ? '<div class="rp-ss">' + esc(sub) + '</div>' : '') + '</div></div>'; }
+
+/* ---- analysis ---- */
+function rptAnalyse(D){
+  var A = { insights:[] }, mem = D.membership || [], pay = (D.finance || []).filter(function(p){ return !p.Status || /^(completed|paid|success)/i.test(p.Status); }), att = D.attendance || [], dirs = D.directorates || [];
+  var dirName = {}; dirs.forEach(function(d){ dirName[d.DirectorateID] = d.Name; });
+  A.members = { total:mem.length, active:mem.filter(function(m){ return m.Status === 'Active'; }).length, inactive:mem.filter(function(m){ return m.Status === 'Inactive'; }).length, pending:mem.filter(function(m){ return m.Status === 'Pending'; }).length };
+  var act = mem.filter(function(m){ return m.Status === 'Active'; });
+  A.dues = { paid:act.filter(function(m){ return m.DuesStatus === 'Paid'; }).length, owing:act.filter(function(m){ return m.DuesStatus !== 'Paid'; }).length, activeN:act.length }; A.dues.rate = rPct(A.dues.paid, A.dues.activeN);
+  A.byDir = rItems(rCount(act, function(m){ return m.DirectorateID ? (dirName[m.DirectorateID] || m.DirectorateID) : 'No directorate'; }));
+  var months = rLastMonths(12), joinMap = rCount(mem, function(m){ return rMonthKey(m.JoinDate || m.CreatedAt); });
+  A.growth = months.map(function(k){ return { label:rMonthLabel(k), value:joinMap[k] || 0, key:k }; });
+  var cut = new Date(); cut.setDate(cut.getDate() - 30); A.new30 = mem.filter(function(m){ var d = new Date(String(m.JoinDate || m.CreatedAt).slice(0, 10) + 'T00:00:00'); return !isNaN(d.getTime()) && d >= cut; }).length;
+  A.fin = { count:pay.length, total:pay.reduce(function(a, p){ return a + (Number(p.Amount) || 0); }, 0) }; A.fin.avg = A.fin.count ? A.fin.total / A.fin.count : 0;
+  var byMonth = {}; pay.forEach(function(p){ var k = rMonthKey(p.PaymentDate); if(k) byMonth[k] = (byMonth[k] || 0) + (Number(p.Amount) || 0); });
+  var months6 = rLastMonths(6); A.collect = months6.map(function(k){ return { label:rMonthLabel(k), value:byMonth[k] || 0, key:k }; });
+  var cat = {}; pay.forEach(function(p){ var k = p.Category || 'Other'; cat[k] = (cat[k] || 0) + (Number(p.Amount) || 0); }); A.byCat = rItems(cat);
+  var meth = {}; pay.forEach(function(p){ var k = p.PaymentMethod || 'Other'; meth[k] = (meth[k] || 0) + (Number(p.Amount) || 0); }); A.byMethod = rItems(meth);
+  A.att = { total:att.length, present:att.filter(function(a){ return a.Status === 'Present'; }).length, absent:att.filter(function(a){ return a.Status === 'Absent'; }).length, excused:att.filter(function(a){ return a.Status === 'Excused'; }).length }; A.att.rate = rPct(A.att.present, A.att.total);
+  var mt = {}; att.forEach(function(a){ var k = a.MeetingTitle || 'Meeting'; mt[k] = mt[k] || { p:0, t:0 }; mt[k].t++; if(a.Status === 'Present') mt[k].p++; });
+  A.byMeeting = Object.keys(mt).map(function(k){ return { label:k, value:rPct(mt[k].p, mt[k].t), color:RPT_COLORS[0] }; });
+  var mm = {}; att.forEach(function(a){ var k = a.MemberName || ''; if(!k) return; mm[k] = mm[k] || { p:0, t:0 }; mm[k].t++; if(a.Status === 'Present') mm[k].p++; });
+  A.lowAtt = Object.keys(mm).map(function(k){ return { name:k, rate:rPct(mm[k].p, mm[k].t), t:mm[k].t }; }).filter(function(x){ return x.t >= 2 && x.rate < 50; }).sort(function(a, b){ return a.rate - b.rate; });
+  // insights in plain language
+  var I = A.insights;
+  if(A.members.total){ I.push({ tone:'blue', icon:'users', t:'<strong>' + A.members.active + '</strong> of <strong>' + A.members.total + '</strong> members are active' + (A.members.pending ? ', and <strong>' + A.members.pending + '</strong> request' + (A.members.pending === 1 ? ' is' : 's are') + ' waiting for approval' : '') + (A.new30 ? '. <strong>' + A.new30 + '</strong> joined in the last 30 days' : '') + '.' }); }
+  if(A.dues.activeN){ I.push({ tone:A.dues.rate >= 80 ? 'green' : (A.dues.rate >= 50 ? 'amber' : 'red'), icon:'card', t:'Dues compliance is <strong>' + A.dues.rate + '%</strong>: ' + A.dues.paid + ' paid and <strong>' + A.dues.owing + '</strong> still owing.' + (A.dues.rate < 80 ? ' A reminder campaign could close the gap.' : ' Great work.') }); }
+  if(A.fin.count){ var topCat = A.byCat[0], best = A.collect.slice().sort(function(a, b){ return b.value - a.value; })[0]; I.push({ tone:'green', icon:'trend', t:'<strong>' + rMoney(A.fin.total) + '</strong> collected across ' + A.fin.count + ' payment' + (A.fin.count === 1 ? '' : 's') + (topCat ? '; most of it from <strong>' + esc(topCat.label) + '</strong> (' + rPct(topCat.value, A.fin.total) + '%)' : '') + (best && best.value ? '. Best recent month: <strong>' + best.label + '</strong> (' + rMoney(best.value) + ')' : '') + '.' }); }
+  if(A.att.total){ var low = A.byMeeting.slice().sort(function(a, b){ return a.value - b.value; })[0]; I.push({ tone:A.att.rate >= 70 ? 'green' : 'amber', icon:'checkc', t:'Average attendance is <strong>' + A.att.rate + '%</strong> across ' + A.byMeeting.length + ' meeting' + (A.byMeeting.length === 1 ? '' : 's') + (low && A.byMeeting.length > 1 ? '. Lowest: <strong>' + esc(low.label) + '</strong> (' + low.value + '%)' : '') + (A.lowAtt.length ? '. <strong>' + A.lowAtt.length + '</strong> member' + (A.lowAtt.length === 1 ? ' attends' : 's attend') + ' fewer than half of meetings: worth a friendly call.' : '.') }); }
+  if(A.byDir.length){ var big = A.byDir[0], none = A.byDir.filter(function(x){ return x.label === 'No directorate'; })[0]; I.push({ tone:'purple', icon:'layers', t:'The largest directorate is <strong>' + esc(big.label) + '</strong> with ' + big.value + ' active member' + (big.value === 1 ? '' : 's') + (none && none !== big ? '. <strong>' + none.value + '</strong> active member' + (none.value === 1 ? ' has' : 's have') + ' no directorate yet.' : '.') }); }
+  return A;
+}
+function rptLoad(force, cb){
+  if(RPT.data && !force) return cb(RPT.data);
+  var get = function(k){ return api('reports.' + k, {}).then(function(r){ return (r && r.rows) || []; }).catch(function(){ return []; }); };
+  Promise.all([get('membership'), get('finance'), get('attendance'), get('directorates')]).then(function(r){
+    var D = { membership:r[0], finance:r[1], attendance:r[2], directorates:r[3], at:new Date() }; D.A = rptAnalyse(D); RPT.data = D; cb(D);
+  });
+}
+function rptEnsureCss(){
+  if($id('rpCss')) return; var st = document.createElement('style'); st.id = 'rpCss';
+  st.textContent = '.rp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}.rp-stat{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;}' +
+    '.rp-si{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:0 0 44px;padding:11px;}.rp-sl{font-size:12px;color:var(--muted);font-weight:600;}.rp-sv{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15;}.rp-ss{font-size:12px;color:var(--muted);}' +
+    '.rp-ins{background:linear-gradient(135deg,var(--brand-l),var(--surface));border:1px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:16px;}.rp-ins h4{margin:0 0 10px;font-size:15px;}.rp-ir{display:flex;gap:12px;align-items:flex-start;padding:8px 0;font-size:14px;line-height:1.5;}.rp-ir+.rp-ir{border-top:1px solid var(--border);}.rp-ii{flex:0 0 28px;width:28px;height:28px;border-radius:8px;padding:6px;}' +
+    '.rp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px;}.rp-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;min-width:0;}.rp-card.span2{grid-column:span 2;}.rp-ct{font-weight:700;font-size:15px;}.rp-cs{font-size:12px;color:var(--muted);margin:2px 0 10px;}' +
+    '.rp-svg{width:100%;height:auto;display:block;max-height:300px;}.rp-donut{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}.rp-legend{flex:1;min-width:150px;display:grid;gap:7px;font-size:13px;}.rp-legend div{display:flex;align-items:center;gap:8px;}.rp-legend i{width:10px;height:10px;border-radius:3px;flex:0 0 10px;}.rp-legend span{flex:1;color:var(--ink2);}.rp-legend b{font-weight:700;}.rp-legend em{font-style:normal;color:var(--muted);font-weight:600;font-size:12px;}' +
+    '.rp-hbars{display:grid;gap:9px;}.rp-hrow{display:grid;grid-template-columns:minmax(80px,32%) 1fr auto;gap:10px;align-items:center;font-size:13px;}.rp-hl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2);}.rp-ht{height:12px;background:var(--surface3);border-radius:99px;overflow:hidden;}.rp-ht i{display:block;height:100%;border-radius:99px;}' +
+    '.rp-list{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}.rp-rc{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:6px;}.rp-rc .ri{width:40px;height:40px;border-radius:11px;padding:9px;background:var(--brand-l);color:var(--brand);}.rp-rc h4{margin:6px 0 0;font-size:15px;}.rp-rc p{margin:0;font-size:13px;color:var(--muted);flex:1;}.rp-rc .ra{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}' +
+    '.rp-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}.rp-top h3{margin:0;font-size:18px;}' +
+    '@media(max-width:1024px){.rp-stats{grid-template-columns:repeat(2,1fr);}.rp-list{grid-template-columns:repeat(2,1fr);}}@media(max-width:700px){.rp-grid,.rp-list{grid-template-columns:1fr;}.rp-card.span2{grid-column:auto;}.rp-stat{padding:12px;}.rp-sv{font-size:20px;}}';
+  document.head.appendChild(st);
+}
+
+/* ---- overview page ---- */
+var RPT_META = { membership:['users','Membership Report','Who your members are, their status and directorate.'], finance:['card','Finance Report','Every payment recorded, with method and category.'], attendance:['checkc','Attendance Report','Who attended each meeting.'], directorates:['layers','Directorates Report','Directorates, directors and head-counts.'], duesCompliance:['clipboard','Dues Compliance','Who has paid and who still owes.'], growth:['trend','Growth Analytics','New members by month.'] };
+function renderReports(){
+  rptEnsureCss();
+  var el = $id('pg-reports'); el.innerHTML = '<div class="rp-stats">' + [1,2,3,4].map(function(){ return '<div class="rp-stat" style="height:76px;opacity:.5;"></div>'; }).join('') + '</div>' + loadingRows(4);
+  rptLoad(false, function(D){ drawReports(el, D); });
+}
+function drawReports(el, D){
+  var A = D.A, hasFin = A.fin.count > 0, hasAtt = A.att.total > 0;
+  var html = '<div class="rp-top"><div><h3>Overview</h3><div style="font-size:12px;color:var(--muted);">Updated ' + D.at.toLocaleString('en-NG', { dateStyle:'medium', timeStyle:'short' }) + '</div></div><div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" id="rpRefresh">' + ic('refresh') + ' Refresh</button><button class="btn btn-primary btn-sm" id="rpPrint">' + ic('download') + ' Print or save as PDF</button></div></div>';
+  html += '<div class="rp-stats">' + rpStat('users', 'Active members', A.members.active, A.members.total + ' in total' + (A.members.pending ? ' · ' + A.members.pending + ' pending' : ''), 'blue') +
+    rpStat('card', 'Dues compliance', A.dues.activeN ? A.dues.rate + '%' : '—', A.dues.paid + ' paid · ' + A.dues.owing + ' owing', A.dues.rate >= 80 ? 'green' : (A.dues.rate >= 50 ? 'amber' : 'red')) +
+    rpStat('trend', 'Total collected', hasFin ? rShort(A.fin.total) : '—', hasFin ? A.fin.count + ' payments · avg ' + rShort(A.fin.avg) : 'No payments yet', 'green') +
+    rpStat('checkc', 'Average attendance', hasAtt ? A.att.rate + '%' : '—', hasAtt ? A.byMeeting.length + ' meeting' + (A.byMeeting.length === 1 ? '' : 's') : 'No attendance yet', 'purple') + '</div>';
+  if(A.insights.length) html += '<div class="rp-ins"><h4>' + ic('spark').replace('class="ico"', 'class="ico" style="width:16px;height:16px;vertical-align:-3px;"') + ' Summary in plain words</h4>' + A.insights.map(function(x){ var col = { blue:'#1D4ED8', green:'#047857', amber:'#B45309', purple:'#6D28D9', red:'#B91C1C' }[x.tone], bg = { blue:'#DBEAFE', green:'#D1FAE5', amber:'#FEF3C7', purple:'#EDE9FE', red:'#FEE2E2' }[x.tone]; return '<div class="rp-ir"><span class="rp-ii" style="background:' + bg + ';color:' + col + ';">' + ic(x.icon) + '</span><div>' + x.t + '</div></div>'; }).join('') + '</div>';
+  html += '<div class="rp-grid">' +
+    rpCard('Members by status', 'All members on record', chartDonut(rItems({ Active:A.members.active, Inactive:A.members.inactive, Pending:A.members.pending }, false).filter(function(x){ return x.value; }).map(function(x){ x.color = { Active:'#10B981', Inactive:'#94A3B8', Pending:'#F59E0B' }[x.label]; return x; }), { center:A.members.total, centerLabel:'Members', title:'Members by status' })) +
+    rpCard('Dues paid vs owing', 'Active members', chartDonut([{ label:'Paid', value:A.dues.paid, color:'#10B981' }, { label:'Owing', value:A.dues.owing, color:'#F59E0B' }], { center:A.dues.activeN ? A.dues.rate + '%' : '—', centerLabel:'Paid', title:'Dues' })) +
+    rpCard('New members by month', 'Last 12 months', chartLine(A.growth, { title:'New members', wide:true }), true) +
+    rpCard('Members by directorate', 'Active members', chartBars(A.byDir.slice(0, 8), { horizontal:true, title:'Directorates' })) +
+    rpCard('Attendance split', hasAtt ? A.att.total + ' attendance records' : 'No meetings marked yet', chartDonut([{ label:'Present', value:A.att.present, color:'#10B981' }, { label:'Excused', value:A.att.excused, color:'#F59E0B' }, { label:'Absent', value:A.att.absent, color:'#EF4444' }], { center:hasAtt ? A.att.rate + '%' : '—', centerLabel:'Present', title:'Attendance' })) +
+    rpCard('Money collected by month', 'Last 6 months', chartBars(A.collect, { fmt:rShort, color:'#2563EB', title:'Collections', wide:true }), true) +
+    rpCard('Income by category', 'What the money was for', chartDonut(A.byCat.slice(0, 6), { fmt:rShort, center:rShort(A.fin.total), centerLabel:'Collected', title:'Income by category' })) +
+    rpCard('Payment methods', 'How members pay', chartBars(A.byMethod.slice(0, 6), { horizontal:true, fmt:rShort, title:'Payment methods' })) +
+    (A.byMeeting.length ? rpCard('Attendance by meeting', 'Percentage present', chartBars(A.byMeeting.slice(-8), { fmt:function(v){ return v + '%'; }, color:'#8B5CF6', title:'Attendance by meeting', wide:true }), true) : '') + '</div>';
+  html += '<div class="rp-top" style="margin-top:6px;"><h3>Detailed reports</h3></div><div class="rp-list">' + Object.keys(RPT_META).map(function(k){ var m = RPT_META[k]; return '<div class="rp-rc"><span class="ri">' + ic(m[0]) + '</span><h4>' + m[1] + '</h4><p>' + m[2] + '</p><div class="ra"><button class="btn btn-primary btn-sm" data-rview="' + k + '">View</button><button class="btn btn-outline btn-sm" data-rep="' + k + '" data-fmt="csv">CSV</button><button class="btn btn-outline btn-sm" data-rep="' + k + '" data-fmt="xlsx">Excel</button></div><div id="repStatus-' + k + '" style="font-size:12px;color:var(--muted);"></div></div>'; }).join('') + '</div>';
+  el.innerHTML = html;
+  el.querySelector('#rpRefresh').addEventListener('click', function(){ el.innerHTML = '<div class="rp-stats">' + [1,2,3,4].map(function(){ return '<div class="rp-stat" style="height:76px;opacity:.5;"></div>'; }).join('') + '</div>' + loadingRows(4); rptLoad(true, function(D2){ drawReports(el, D2); }); });
+  el.querySelector('#rpPrint').addEventListener('click', function(){ window.print(); });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-rep]'), function(b){ b.addEventListener('click', function(){ generateReport(b.dataset.rep, b.dataset.fmt); }); });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-rview]'), function(b){ b.addEventListener('click', function(){ drawReportDetail(el, b.dataset.rview); }); });
+}
+
+/* ---- single report: summary, charts, table ---- */
+function drawReportDetail(el, key){
+  var D = RPT.data, A = D.A, meta = RPT_META[key];
+  var back = '<div class="rp-top"><div style="display:flex;gap:10px;align-items:center;"><button class="btn btn-ghost btn-sm" id="rdBack">' + ic('arrowl') + ' All reports</button><h3>' + meta[1] + '</h3></div><div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" data-rep="' + key + '" data-fmt="csv">CSV</button><button class="btn btn-outline btn-sm" data-rep="' + key + '" data-fmt="xlsx">Excel</button><button class="btn btn-outline btn-sm" id="rdPrint">Print</button></div></div><div id="repStatus-' + key + '" style="font-size:12px;color:var(--muted);margin:-6px 0 10px;"></div>';
+  var stats = '', charts = '', cols = [], rows = [], summary = '';
+  var mem = D.membership, dirName = {}; D.directorates.forEach(function(d){ dirName[d.DirectorateID] = d.Name; });
+  if(key === 'membership'){
+    stats = rpStat('users', 'Total members', A.members.total, '', 'blue') + rpStat('checkc', 'Active', A.members.active, rPct(A.members.active, A.members.total) + '% of members', 'green') + rpStat('clock', 'Pending approval', A.members.pending, 'Join requests', 'amber') + rpStat('usernew', 'Joined last 30 days', A.new30, '', 'purple');
+    charts = rpCard('By status', '', chartDonut(rItems(rCount(mem, function(m){ return m.Status; })), { center:A.members.total, centerLabel:'Members' })) + rpCard('By membership type', '', chartDonut(rItems(rCount(mem, function(m){ return m.MembershipType || 'Regular'; })), { center:A.members.total, centerLabel:'Members' })) + rpCard('By directorate', 'Active members', chartBars(A.byDir.slice(0, 8), { horizontal:true }), true);
+    cols = ['MemberID','FullName','Email','Phone','DirectorateID','Status','JoinDate','MembershipType','DuesStatus']; rows = mem.map(function(m){ return Object.assign({}, m, { DirectorateID:dirName[m.DirectorateID] || m.DirectorateID || '' }); });
+    summary = A.members.active + ' of ' + A.members.total + ' members are active. ' + (A.byDir[0] ? 'The largest directorate is ' + A.byDir[0].label + ' (' + A.byDir[0].value + ').' : '');
+  } else if(key === 'finance'){
+    stats = rpStat('trend', 'Total collected', rShort(A.fin.total), rMoney(A.fin.total), 'green') + rpStat('file', 'Payments', A.fin.count, '', 'blue') + rpStat('card', 'Average payment', rShort(A.fin.avg), '', 'purple') + rpStat('star', 'Top category', A.byCat[0] ? A.byCat[0].label : '—', A.byCat[0] ? rShort(A.byCat[0].value) : '', 'amber');
+    charts = rpCard('Money collected by month', 'Last 6 months', chartBars(A.collect, { fmt:rShort, color:'#2563EB', wide:true }), true) + rpCard('Income by category', '', chartDonut(A.byCat.slice(0, 6), { fmt:rShort, center:rShort(A.fin.total), centerLabel:'Collected' })) + rpCard('Payment methods', '', chartBars(A.byMethod.slice(0, 6), { horizontal:true, fmt:rShort }));
+    cols = ['PaymentID','ReceiptNumber','MemberName','Amount','PaymentDate','PaymentMethod','Category','Status']; rows = D.finance; summary = A.fin.count + ' payments totalling ' + rMoney(A.fin.total) + '.';
+  } else if(key === 'attendance'){
+    stats = rpStat('checkc', 'Average attendance', A.att.total ? A.att.rate + '%' : '—', '', 'green') + rpStat('users', 'Records', A.att.total, '', 'blue') + rpStat('x', 'Absent', A.att.absent, '', 'red') + rpStat('clock', 'Excused', A.att.excused, '', 'amber');
+    var lowList = A.lowAtt.length ? '<div style="font-size:13px;display:grid;gap:6px;">' + A.lowAtt.slice(0, 8).map(function(x){ return '<div style="display:flex;justify-content:space-between;"><span>' + esc(x.name) + '</span><b>' + x.rate + '%</b></div>'; }).join('') + '</div>' : '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">No one is below 50%. 🎉</div>';
+    charts = rpCard('Attendance split', '', chartDonut([{ label:'Present', value:A.att.present, color:'#10B981' }, { label:'Excused', value:A.att.excused, color:'#F59E0B' }, { label:'Absent', value:A.att.absent, color:'#EF4444' }], { center:A.att.total ? A.att.rate + '%' : '—', centerLabel:'Present' })) + rpCard('Members to check on', 'Attend fewer than half of meetings', lowList) + rpCard('Attendance by meeting', 'Percentage present', chartBars(A.byMeeting.slice(-10), { fmt:function(v){ return v + '%'; }, color:'#8B5CF6', wide:true }), true);
+    cols = ['MeetingTitle','MemberName','DirectorateID','Status','MarkedAt']; rows = D.attendance.map(function(a){ return Object.assign({}, a, { DirectorateID:dirName[a.DirectorateID] || a.DirectorateID || '' }); }); summary = 'Average attendance is ' + A.att.rate + '% across ' + A.byMeeting.length + ' meetings.';
+  } else if(key === 'directorates'){
+    var dd = D.directorates; stats = rpStat('layers', 'Directorates', dd.length, '', 'blue') + rpStat('users', 'Active members assigned', A.byDir.filter(function(x){ return x.label !== 'No directorate'; }).reduce(function(a, x){ return a + x.value; }, 0), '', 'green') + rpStat('clock', 'Without a directorate', (A.byDir.filter(function(x){ return x.label === 'No directorate'; })[0] || { value:0 }).value, '', 'amber') + rpStat('star', 'Largest', A.byDir[0] ? A.byDir[0].label : '—', A.byDir[0] ? A.byDir[0].value + ' members' : '', 'purple');
+    charts = rpCard('Members per directorate', 'Active members', chartBars(A.byDir.slice(0, 10), { horizontal:true }), true) + rpCard('Share of members', '', chartDonut(A.byDir.slice(0, 6), { center:A.members.active, centerLabel:'Active' }));
+    cols = ['DirectorateID','Name','DirectorName','MemberCount','IsActive']; rows = dd; summary = dd.length + ' directorates.';
+  } else if(key === 'duesCompliance'){
+    var act = mem.filter(function(m){ return m.Status === 'Active'; }), owe = act.filter(function(m){ return m.DuesStatus !== 'Paid'; });
+    stats = rpStat('card', 'Compliance', A.dues.activeN ? A.dues.rate + '%' : '—', '', A.dues.rate >= 80 ? 'green' : 'amber') + rpStat('checkc', 'Paid', A.dues.paid, '', 'green') + rpStat('clock', 'Owing', A.dues.owing, '', 'red') + rpStat('users', 'Active members', A.dues.activeN, '', 'blue');
+    var byDirDues = {}; act.forEach(function(m){ var k = m.DirectorateID ? (dirName[m.DirectorateID] || m.DirectorateID) : 'No directorate'; byDirDues[k] = byDirDues[k] || { p:0, t:0 }; byDirDues[k].t++; if(m.DuesStatus === 'Paid') byDirDues[k].p++; });
+    charts = rpCard('Paid vs owing', '', chartDonut([{ label:'Paid', value:A.dues.paid, color:'#10B981' }, { label:'Owing', value:A.dues.owing, color:'#F59E0B' }], { center:A.dues.activeN ? A.dues.rate + '%' : '—', centerLabel:'Paid' })) + rpCard('Compliance by directorate', 'Percentage paid', chartBars(Object.keys(byDirDues).map(function(k, i){ return { label:k, value:rPct(byDirDues[k].p, byDirDues[k].t), color:RPT_COLORS[i % 8] }; }), { horizontal:true, fmt:function(v){ return v + '%'; } }));
+    cols = ['MemberID','FullName','DuesStatus','DirectorateID']; rows = act.map(function(m){ return { MemberID:m.MemberID, FullName:m.FullName, DuesStatus:m.DuesStatus, DirectorateID:dirName[m.DirectorateID] || m.DirectorateID || '' }; }); summary = A.dues.owing + ' active members still owe dues.';
+  } else if(key === 'growth'){
+    var tot12 = A.growth.reduce(function(a, x){ return a + x.value; }, 0), bestG = A.growth.slice().sort(function(a, b){ return b.value - a.value; })[0];
+    stats = rpStat('usernew', 'Joined (12 months)', tot12, '', 'blue') + rpStat('trend', 'Joined (30 days)', A.new30, '', 'green') + rpStat('star', 'Best month', bestG && bestG.value ? bestG.label : '—', bestG && bestG.value ? bestG.value + ' new' : '', 'purple') + rpStat('users', 'All members', A.members.total, '', 'amber');
+    var cum = 0, base = A.members.total - tot12; charts = rpCard('New members by month', 'Last 12 months', chartLine(A.growth, { wide:true }), true) + rpCard('Total membership over time', 'Running total', chartLine(A.growth.map(function(x){ cum += x.value; return { label:x.label, value:base + cum }; }), { color:'#10B981', wide:true }), true);
+    cols = ['Month','NewMembers']; rows = A.growth.map(function(x){ return { Month:x.key, NewMembers:x.value }; }); summary = tot12 + ' people joined in the last 12 months.';
+  }
+  var shown = rows.slice(0, 100);
+  var table = '<div class="rp-card" style="margin-top:14px;"><div class="rp-ct">Data</div><div class="rp-cs">' + (rows.length > 100 ? 'Showing the first 100 of ' + rows.length + ' rows. Download for the full list.' : rows.length + ' row' + (rows.length === 1 ? '' : 's')) + '</div>' + (rows.length ? '<div class="table-wrap" style="max-height:380px;overflow:auto;"><table class="dtbl"><thead><tr>' + cols.map(function(c){ return '<th>' + esc(c.replace(/([a-z])([A-Z])/g, '$1 $2')) + '</th>'; }).join('') + '</tr></thead><tbody>' + shown.map(function(r){ return '<tr>' + cols.map(function(c){ var v = r[c]; if(c === 'Amount') v = rMoney(v); return '<td>' + esc(v == null ? '' : v) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '<div style="color:var(--muted);padding:20px;text-align:center;">Nothing to show yet.</div>') + '</div>';
+  el.innerHTML = back + '<div class="rp-ins" style="margin-bottom:14px;"><strong>In short:</strong> ' + esc(summary) + '</div><div class="rp-stats">' + stats + '</div><div class="rp-grid">' + charts + '</div>' + table;
+  el.querySelector('#rdBack').addEventListener('click', function(){ drawReports(el, RPT.data); });
+  el.querySelector('#rdPrint').addEventListener('click', function(){ window.print(); });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-rep]'), function(b){ b.addEventListener('click', function(){ generateReport(b.dataset.rep, b.dataset.fmt); }); });
+}
+
+/* ============================================================================
  * MULTI-TENANT FRONT DOOR: signup, trial banner, public-site routing, demo data
  * ==========================================================================*/
 var ORG_TYPES = ['JCI chapter','Rotary / Lions club','Church or ministry','NGO / non-profit','Alumni association','Professional association','Cooperative / thrift group','School or club','Other'];
@@ -5643,6 +6089,46 @@ function demoTenantRoute(action, data){
   var d = demoT();
   var thr = function(m){ throw { message:m }; };
   var strip = function(s){ var c = Object.assign({}, s); delete c.config; return c; };
+  if(!DEMO_DB) seedDemoDb();
+  d.join = d.join || { code:'demo' + Math.random().toString(36).slice(2, 8), enabled:true, approval:'auto' }; d.joiners = d.joiners || [];
+  var allMem = function(){ return DEMO_DB.members.concat(d.joiners); };
+  if(action === 'members.list' && d.joiners.length) return { handled:true, value:allMem() };
+  if(action === 'members.joinSettings' || action === 'members.joinSave'){
+    if(action === 'members.joinSave'){ if(data.regenerate) d.join.code = 'demo' + Math.random().toString(36).slice(2, 8); if(data.enabled !== undefined) d.join.enabled = !!data.enabled; if(data.approval) d.join.approval = data.approval; demoTSave(); }
+    return { handled:true, value:{ enabled:d.join.enabled, approval:d.join.approval, url:location.href.split('?')[0].split('#')[0] + '?join=demo~' + d.join.code, pending:d.joiners.filter(function(x){ return x.Status === 'Pending'; }).length, orgName:(STATE.org && STATE.org.name) || 'Your Organisation' } };
+  }
+  if(action === 'join.info'){
+    var ref = String(data.ref || ''); if(ref !== 'demo~' + d.join.code || !d.join.enabled) thr('This join link is not active. Please ask your organisation for a new one.');
+    return { handled:true, value:{ orgName:(d.orgs && d.orgs[0] && d.orgs[0].name) || 'Your Organisation', logo:'', approval:d.join.approval, brandColor:'#2563EB', directorates:DEMO_DB.dirs.map(function(x){ return { id:x.DirectorateID, name:x.Name }; }) } };
+  }
+  if(action === 'join.register'){
+    if(String(data.ref || '') !== 'demo~' + d.join.code || !d.join.enabled) thr('This join link is not active. Please ask your organisation for a new one.');
+    var em = String(data.email || '').trim().toLowerCase(); if(!data.fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) thr('Please enter your name and a valid email address.'); if(String(data.password || '').length < 8) thr('Choose a password of at least 8 characters.');
+    if(allMem().some(function(x){ return String(x.Email).toLowerCase() === em; })) thr('This email already has an account. Please sign in instead.');
+    var needA = d.join.approval === 'approve'; d.seq++; d.joiners.push({ MemberID:'MEM-J' + d.seq, UserID:'USR-J' + d.seq, FullName:data.fullName, Email:em, Phone:data.phone || '', DirectorateID:data.directorateId || '', Status:needA ? 'Pending' : 'Active', JoinDate:new Date().toISOString().slice(0, 10), MembershipType:'Regular', DuesStatus:'Pending', Notes:'Joined through the member link' }); demoTSave();
+    return { handled:true, value:{ status:needA ? 'pending' : 'active', orgName:'Your Organisation' } };
+  }
+  if(action === 'members.approve' || action === 'members.decline'){
+    var jm = d.joiners.filter(function(x){ return x.MemberID === data.memberId; })[0]; if(!jm) thr('Member not found.'); jm.Status = action === 'members.approve' ? 'Active' : 'Inactive'; demoTSave(); return { handled:true, value:{ ok:true } };
+  }
+  if(action === 'members.import'){
+    var res = { created:0, emailed:0, skipped:[], emailsSkipped:false };
+    (data.rows || []).forEach(function(r){ var em2 = String(r.email || '').toLowerCase();
+      if(allMem().some(function(x){ return String(x.Email).toLowerCase() === em2; })) { res.skipped.push({ n:r.n, fullName:r.fullName, email:r.email, reason:'Already a member in this organisation.' }); return; }
+      var dd = DEMO_DB.dirs.filter(function(x){ return String(x.Name).toLowerCase() === String(r.directorate || '').toLowerCase(); })[0];
+      d.seq++; DEMO_DB.members.push({ MemberID:'MEM-I' + d.seq, UserID:'USR-I' + d.seq, FullName:r.fullName, Email:em2, Phone:r.phone || '', DirectorateID:dd ? dd.DirectorateID : '', Status:r.status || 'Active', JoinDate:r.joinDate || new Date().toISOString().slice(0, 10), MembershipType:r.membershipType || 'Regular', DuesStatus:r.duesStatus || 'Pending', Notes:'Imported from spreadsheet' }); res.created++; if(data.sendEmail) res.emailed++; });
+    return { handled:true, value:res };
+  }
+  if(action.indexOf('reports.') === 0){
+    var rk = action.slice(8), M = allMem(), D2 = DEMO_DB.dirs, nm = {}; D2.forEach(function(x){ nm[x.DirectorateID] = x.Name; });
+    if(rk === 'membership') return { handled:true, value:{ title:'Membership', columns:['MemberID','FullName','Email','Phone','DirectorateID','Status','JoinDate','MembershipType','DuesStatus'], rows:M } };
+    if(rk === 'finance') return { handled:true, value:{ title:'Finance', columns:['PaymentID','ReceiptNumber','MemberName','Amount','PaymentDate','PaymentMethod','Category','Status'], rows:DEMO_DB.payments } };
+    if(rk === 'attendance') return { handled:true, value:{ title:'Attendance', columns:['AttendanceID','MeetingTitle','MemberName','DirectorateID','Status','MarkedAt'], rows:(DEMO_DB.attendanceRows || []) } };
+    if(rk === 'directorates') return { handled:true, value:{ title:'Directorates', columns:['DirectorateID','Name','DirectorName','MemberCount','IsActive'], rows:D2 } };
+    if(rk === 'duesCompliance') return { handled:true, value:{ title:'Dues Compliance', columns:['MemberID','FullName','DuesStatus','DirectorateID'], rows:M.filter(function(x){ return x.Status === 'Active'; }).map(function(x){ return { MemberID:x.MemberID, FullName:x.FullName, DuesStatus:x.DuesStatus, DirectorateID:x.DirectorateID }; }) } };
+    if(rk === 'growth'){ var bm = {}; M.forEach(function(x){ var k = String(x.JoinDate || '').slice(0, 7); if(k) bm[k] = (bm[k] || 0) + 1; }); return { handled:true, value:{ title:'Growth Analytics', columns:['Month','NewMembers'], rows:Object.keys(bm).sort().map(function(k){ return { Month:k, NewMembers:bm[k] }; }) } }; }
+    if(rk === 'exportExcel') return { handled:true, value:{ url:'#', exportUrl:'#', fileId:'demo' } };
+  }
   if(action === 'auth.signup'){
     if(!data.orgName || !data.email || !data.password) thr('Please complete every field.');
     if(d.orgs.some(function(o){ return String(o.adminEmail).toLowerCase() === String(data.email).toLowerCase(); })) thr('An account with this email already exists. Try signing in.');
