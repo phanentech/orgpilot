@@ -804,6 +804,7 @@ img,svg,video,canvas{max-width:100%;}
         <div class="pg" id="pg-campaigns"></div>
         <div class="pg" id="pg-sites"></div>
         <div class="pg" id="pg-care"></div>
+        <div class="pg" id="pg-roles"></div>
 
       </div>
     </div>
@@ -1110,7 +1111,7 @@ function enableDark(on){
 /* -------------------- navigation -------------------- */
 var ICONS = {
   grid:'▦', users:'👥', wallet:'💳', calendar:'📅', check:'✅', file:'📄', layers:'🗂️',
-  bar:'📊', megaphone:'📣', globe:'🌐', bell:'🔔', user:'👤', settings:'⚙️', shield:'🛡️', clipboard:'📋', leave:'🌴', audit:'📜', heart:'💗'
+  bar:'📊', megaphone:'📣', globe:'🌐', bell:'🔔', user:'👤', settings:'⚙️', shield:'🛡️', clipboard:'📋', leave:'🌴', audit:'📜', heart:'💗', key:'🔑'
 };
 
 function renderSidebar(){
@@ -1133,14 +1134,14 @@ function renderSidebar(){
     });
   });
   var chip = document.getElementById('sbUserChip');
-  chip.innerHTML = avatarHtml(STATE.user.FullName,'sm') + '<div><div class="name">'+esc(STATE.user.FullName)+'</div><div class="role">'+esc(STATE.user.Role)+'</div></div>';
+  chip.innerHTML = avatarHtml(STATE.user.FullName,'sm') + '<div><div class="name">'+esc(STATE.user.FullName)+'</div><div class="role">'+esc(STATE.user.RoleLabel||STATE.user.Role)+'</div></div>';
   var badge = document.getElementById('sbPlanBadge');
   badge.textContent = STATE.plan;
   badge.className = 'tier-badge tier-' + STATE.plan.toLowerCase();
 }
 
 function canAccessClient(page){
-  if(page === 'care') return true;   /* wellbeing page is open to every plan */
+  if(page === 'care' || page === 'roles') return true;   /* wellbeing page is open to every plan */
   if(page === 'superadmin') return STATE.user && STATE.user.Role === 'SuperAdmin';   /* platform tool: never plan-gated */
   var limits = STATE.planLimits[STATE.plan] || {pages:[]};
   if(limits.pages.indexOf(page) === -1) return false;
@@ -1166,7 +1167,7 @@ function go(page){
   document.getElementById('mobileTitle').textContent = label;
   closeSidebarMobile();
 
-  var alwaysFresh = page === 'dashboard' || page === 'members' || page === 'directorates' || page === 'projects' || page === 'leave' || page === 'auditlog' || page === 'campaigns' || page === 'sites' || page === 'care';
+  var alwaysFresh = page === 'dashboard' || page === 'members' || page === 'directorates' || page === 'projects' || page === 'leave' || page === 'auditlog' || page === 'campaigns' || page === 'sites' || page === 'care' || page === 'roles';
   if(alwaysFresh || !STATE.pageLoaded[page]){
     renderPage(page);
     if(!alwaysFresh) STATE.pageLoaded[page] = true;
@@ -1175,7 +1176,7 @@ function go(page){
 
 function renderPage(page){
   var fns = {
-    campaigns: renderCampaigns, sites: renderSites, care: renderCare, dashboard: renderDashboard, members: renderMembers, finance: renderFinance,
+    campaigns: renderCampaigns, sites: renderSites, care: renderCare, roles: renderRoles, dashboard: renderDashboard, members: renderMembers, finance: renderFinance,
     meetings: renderMeetings, attendance: renderAttendance, requests: renderRequests,
     directorates: renderDirectorates, reports: renderReports, mypayments: renderMyPayments,
     myattendance: renderMyAttendance, notifications: renderNotifications, profile: renderProfile,
@@ -2680,6 +2681,7 @@ var NAV_CFG_FALLBACK = [
   { page:'leave',label:'Leave Requests',icon:'leave',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
   { page:'campaigns',label:'Campaigns',icon:'megaphone',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
   { page:'care',label:'Care',icon:'heart',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
+  { page:'roles',label:'Roles & Access',icon:'key',roles:['SuperAdmin','President'] },
   { page:'sites',label:'Event Sites',icon:'globe',roles:['SuperAdmin','President','Treasurer','Executive','Director'] },
   { page:'reports',label:'Reports',icon:'bar',roles:['SuperAdmin','President','Treasurer'] },
   { page:'mypayments',label:'My Payments',icon:'wallet',roles:['Member'] },
@@ -2994,7 +2996,7 @@ var EMOJI_ICON = {
   '📊':'bar','🚩':'flag','←':'arrowl','👤':'user','🌴':'plane','📜':'history',
   '📈':'trend','☀':'sun','🌙':'moon','☰':'menu','✕':'x','✖':'x','⚙':'settings',
   '🛡':'shield','🔒':'lock','✉':'mail','👋':'spark','🆕':'usernew',
-  '📣':'megaphone','💗':'heart','🌐':'globe','🎂':'cake','🎉':'gift','⏳':'clock','📤':'send','📎':'clip','🗑':'trash','▦':'grid'
+  '📣':'megaphone','💗':'heart','🔑':'key','🌐':'globe','🎂':'cake','🎉':'gift','⏳':'clock','📤':'send','📎':'clip','🗑':'trash','▦':'grid'
 };
 var EMOJI_RE = /(?:\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDC00-\uDFFF]|[←-⇿⌀-⏿▦☀-➿⬀-⯿])️?/g;
 function svgIcon(name){
@@ -3101,6 +3103,7 @@ var PERM_CATALOG_FALLBACK = [
   { key:'sites.manage',     group:'Campaigns', label:'Build event websites and see registrations',   roles:['SuperAdmin','President','Executive','Director'] },
   { key:'ai.use',           group:'AI',        label:'Use the AI assistant',                         roles:['SuperAdmin','President','Treasurer','Executive','Director'] },
   { key:'settings.manage',  group:'Admin',     label:'Organisation settings and directorates',       roles:['SuperAdmin','President'] },
+  { key:'roles.manage',     group:'Admin',     label:'Create roles and choose what each role can do', roles:['SuperAdmin','President'] },
   { key:'users.manage',     group:'Admin',     label:'Change user roles and account status',         roles:['SuperAdmin','President'] },
   { key:'oversight.access', group:'Admin',     label:'Audit log and Recycle Bin',                    roles:['SuperAdmin','President','Executive'] },
   { key:'superadmin.access',group:'Platform',  label:'Platform owner console',                       roles:['SuperAdmin'], locked:true }
@@ -3626,7 +3629,8 @@ function savePerms(catalog, navList, body){
 function saUsers(body){ renderUsersManager(body, true); }
 function renderUsersManager(host, withOverrides){
   host.innerHTML = loadingRows(4);
-  api('admin.listUsers', {}).then(function(users){
+  Promise.all([api('admin.listUsers', {}), api('roles.options', {}).catch(function(){ return []; })]).then(function(rs){
+    var users = rs[0], customRoles = rs[1] || [];
     var html = '<div class="card" style="padding:0;overflow:hidden;"><div style="padding:16px 18px 0;"><h4 style="margin:0 0 4px;">Users &amp; roles</h4><div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Change a person’s role or deactivate their account. '+(withOverrides?'Use <em>Rights</em> to grant or block individual permissions for one person.':'')+'</div><input class="fc" id="usrSearch" placeholder="Search by name or email…" style="margin-bottom:12px;max-width:340px;"></div>' +
       '<div class="table-wrap" style="border:none;border-top:1px solid var(--border);border-radius:0;"><table class="dtbl"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th>'+(withOverrides?'<th>Actions</th>':'')+'</tr></thead><tbody id="usrBody"></tbody></table></div></div>';
     host.innerHTML = html;
@@ -3635,7 +3639,7 @@ function renderUsersManager(host, withOverrides){
       $id('usrBody').innerHTML = users.filter(function(u){ return !f || (u.FullName+' '+u.Email).toLowerCase().indexOf(f) !== -1; }).map(function(u){
         var me = STATE.user && u.UserID === STATE.user.UserID;
         return '<tr data-uid="'+u.UserID+'"><td><div style="display:flex;gap:10px;align-items:center;">'+avatarHtml(u.FullName,'sm')+'<strong>'+esc(u.FullName)+'</strong>'+(u.hasOverrides?' <span class="tag tag-purple">Custom rights</span>':'')+'</div></td><td>'+esc(u.Email)+'</td>' +
-          '<td><select class="fc" data-role-sel style="min-width:130px;padding:7px 10px;" '+(me?'disabled':'')+'>'+ALL_ROLES.filter(function(r){ return r!=='SuperAdmin' || (STATE.user && STATE.user.Role==='SuperAdmin'); }).map(function(r){ return '<option'+(r===u.Role?' selected':'')+'>'+r+'</option>'; }).join('')+'</select></td>' +
+          '<td><select class="fc" data-role-sel style="min-width:130px;padding:7px 10px;" '+(me?'disabled':'')+'>'+ALL_ROLES.filter(function(r){ return r!=='SuperAdmin' || (STATE.user && STATE.user.Role==='SuperAdmin'); }).concat(customRoles).map(function(r){ return '<option'+(r===u.Role?' selected':'')+'>'+r+'</option>'; }).join('')+'</select></td>' +
           '<td><label class="switch"><input type="checkbox" data-active '+(u.IsActive?'checked':'')+' '+(me?'disabled':'')+'><span></span></label></td>' +
           (withOverrides?'<td><button class="btn btn-outline btn-sm" data-rights>Rights</button></td>':'')+'</tr>';
       }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No users match.</td></tr>';
@@ -5051,6 +5055,89 @@ function renderCare(){
 }
 
 /* ============================================================================
+ * ROLES & ACCESS: create roles and choose what each one can do
+ * ==========================================================================*/
+SVG_ICONS.key = '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M16 7l3 3M14 9l2 2"/>';
+var ROLES_D = null;
+function roleBadge(r){ return r.source==='builtin' ? '<span class="tag tag-gray">Built in</span>' : (r.source==='platform' ? '<span class="tag tag-purple">Platform</span>' : '<span class="tag tag-blue">Custom</span>'); }
+function renderRoles(){
+  var el = $id('pg-roles');
+  if(!can('roles.manage')){ el.innerHTML = '<div class="card">'+emptyState('🔒','No access','Only organisation admins can manage roles.','')+'</div>'; return; }
+  el.innerHTML = '<div class="skel" style="height:140px;margin-bottom:14px;"></div><div class="skel" style="height:240px;"></div>';
+  api('roles.list', {}).then(function(d){ ROLES_D = d; drawRoles(); }).catch(function(e){ el.innerHTML = '<div class="card" style="color:var(--danger);">'+esc((e&&e.message)||'Could not load roles.')+'</div>'; });
+}
+function drawRoles(){
+  var d = ROLES_D, el = $id('pg-roles');
+  function card(r){
+    var editable = r.source==='org' || (r.source==='platform' && d.isSuper);
+    return '<div class="card" data-rid="'+esc(r.id)+'" style="display:flex;flex-direction:column;gap:8px;"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><strong style="font-size:15px;">'+esc(r.name)+'</strong>'+roleBadge(r)+'</div>' +
+      '<div style="font-size:12.5px;color:var(--muted);min-height:34px;">'+esc(r.description || (r.source==='builtin' ? 'Standard role managed by the platform.' : 'No description.'))+'</div>' +
+      '<div style="font-size:12px;color:var(--muted);">'+r.users+' '+(r.users===1?'person':'people')+' · '+r.permissions.length+' permissions · '+r.pages.length+' menu pages</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;">'+(editable ? '<button class="btn btn-outline btn-sm" data-r="edit">Edit</button>' : '<button class="btn btn-outline btn-sm" data-r="view">View</button>')+(r.source!=='builtin' ? '<button class="btn btn-outline btn-sm" data-r="people">People</button>' : '')+(editable ? '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" data-r="del">'+ic('trash')+'</button>' : '')+'</div></div>';
+  }
+  var grid = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;';
+  el.innerHTML = '<div class="page-head"><div style="font-size:13px;color:var(--muted);max-width:640px;">Create roles such as Secretary, Welfare Officer or Auditor, choose exactly what each one can do and see, then assign people to them.'+(d.isSuper?' As Super Admin you can also publish a role to every organisation, and edit the built-in roles from the Super Admin console.':'')+'</div><div class="page-actions"><button class="btn btn-primary" id="roleNew">'+ic('plus')+' New role</button></div></div>' +
+    '<h4 style="margin:18px 0 10px;">Your roles</h4><div style="'+grid+'">'+(d.custom.length ? d.custom.map(card).join('') : '<div class="card" style="grid-column:1/-1;">'+emptyState('🔑','No custom roles yet','Create your first role to give people just the access they need.','')+'</div>')+'</div>' +
+    '<h4 style="margin:22px 0 10px;">Built-in roles</h4><div style="'+grid+'">'+d.builtIn.map(card).join('')+'</div>';
+  $id('roleNew').addEventListener('click', function(){ openRoleEditor(null); });
+  el.addEventListener('click', function(e){
+    var b = e.target.closest('[data-r]'); if(!b) return; var id = b.closest('[data-rid]').dataset.rid;
+    var r = d.custom.concat(d.builtIn).filter(function(x){ return x.id===id; })[0]; if(!r) return;
+    if(b.dataset.r==='edit') openRoleEditor(r); if(b.dataset.r==='view') openRoleViewer(r); if(b.dataset.r==='people') openRolePeople(r);
+    if(b.dataset.r==='del') confirmModal('Delete role','Delete the role <strong>'+esc(r.name)+'</strong>? This only works when nobody has it.', function(){ api('roles.delete',{roleId:r.id}).then(function(x){ ROLES_D = x; drawRoles(); toast('Role deleted.','info'); }).catch(saErr); }, true);
+  }, { once:false });
+}
+function roleChecks(d, sel){
+  var groups = {}; d.catalog.forEach(function(p){ (groups[p.group] = groups[p.group]||[]).push(p); });
+  return Object.keys(groups).map(function(g){
+    return '<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">'+esc(g)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 14px;">' +
+      groups[g].map(function(p){ var ok = d.canGrant.indexOf(p.key)!==-1; return '<label class="chk" title="'+(ok?'':'You do not have this permission yourself')+'" style="'+(ok?'':'opacity:.5;')+'"><input type="checkbox" data-perm="'+p.key+'" '+(sel.indexOf(p.key)!==-1?'checked':'')+(ok?'':' disabled')+'><span>'+esc(p.label)+'</span></label>'; }).join('')+'</div></div>';
+  }).join('');
+}
+function openRoleEditor(role){
+  var d = ROLES_D, isNew = !role, r = role || { name:'', description:'', permissions:[], pages:['dashboard'], source:'org' };
+  var presets = d.builtIn.concat(d.custom);
+  var body = '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div><label class="lbl">Role name</label><input class="fc" id="rlName" maxlength="40" value="'+esc(r.name)+'" '+(isNew?'':'disabled')+' placeholder="e.g. Welfare Officer"></div><div><label class="lbl">Short description</label><input class="fc" id="rlDesc" maxlength="160" value="'+esc(r.description||'')+'" placeholder="What is this role for?"></div></div>' +
+    (isNew ? '<div style="margin-top:12px;"><label class="lbl">Start from</label><select class="fc" id="rlFrom"><option value="">Blank role</option>'+presets.map(function(p){ return '<option value="'+esc(p.id)+'">Copy of '+esc(p.name)+'</option>'; }).join('')+'</select></div>' : '') +
+    (d.isSuper && (isNew || r.source==='platform') ? '<label class="chk" style="margin-top:12px;"><input type="checkbox" id="rlPlat" '+(r.source==='platform'?'checked disabled':'')+'><span>Make this role available to every organisation</span></label>' : '') +
+    '<h4 style="margin:18px 0 8px;">What can this role do?</h4><div id="rlPerms">'+roleChecks(d, r.permissions)+'</div>' +
+    '<h4 style="margin:12px 0 8px;">Menu pages this role sees</h4><div id="rlPages" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 14px;">'+d.pages.map(function(p){ return '<label class="chk"><input type="checkbox" data-page="'+p.page+'" '+(r.pages.indexOf(p.page)!==-1?'checked':'')+'><span>'+esc(p.label)+'</span></label>'; }).join('')+'</div>' +
+    '<p style="font-size:12px;color:var(--muted);margin-top:10px;">Tip: tick the permission and the matching menu page. Dashboard, Notifications, Profile and Care are always shown. Your plan decides which pages are available.</p>';
+  var m = openModal('lg', isNew ? 'New role' : 'Edit role: '+esc(r.name), body, '<button class="btn btn-secondary" data-action="close-modal">Cancel</button><button class="btn btn-primary" id="rlSave">Save role</button>');
+  var from = $id('rlFrom'); if(from) from.addEventListener('change', function(){
+    var p = presets.filter(function(x){ return x.id===from.value; })[0]; if(!p) return;
+    Array.prototype.forEach.call(m.querySelectorAll('[data-perm]'), function(c){ c.checked = !c.disabled && p.permissions.indexOf(c.dataset.perm)!==-1; });
+    Array.prototype.forEach.call(m.querySelectorAll('[data-page]'), function(c){ c.checked = p.pages.indexOf(c.dataset.page)!==-1; });
+  });
+  $id('rlSave').addEventListener('click', function(){
+    var name = $id('rlName').value.trim(); if(name.length < 2){ toast('Give the role a name.','error'); return; }
+    var perms = Array.prototype.map.call(m.querySelectorAll('[data-perm]:checked'), function(c){ return c.dataset.perm; });
+    var pages = Array.prototype.map.call(m.querySelectorAll('[data-page]:checked'), function(c){ return c.dataset.page; });
+    var plat = $id('rlPlat'), btn = $id('rlSave'); busy(btn, true);
+    api('roles.save', { roleId:isNew?'':r.id, name:name, description:$id('rlDesc').value.trim(), permissions:perms, pages:pages, scope:(plat && plat.checked) ? 'platform' : 'org' }).then(function(x){ ROLES_D = x; closeModal(); drawRoles(); toast('Role saved.','success'); }).catch(saErr).finally(function(){ busy(btn,false); });
+  });
+}
+function openRoleViewer(r){
+  var d = ROLES_D, labels = {}; d.catalog.forEach(function(p){ labels[p.key] = p.label; });
+  var pl = {}; d.pages.forEach(function(p){ pl[p.page] = p.label; });
+  openModal('md', esc(r.name)+' (built in)', '<p style="font-size:13px;color:var(--muted);">Built-in roles are managed by the platform owner. To give someone different access, create a custom role (you can copy this one as a starting point).</p><h4 style="margin:12px 0 6px;">Permissions</h4><ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">'+(r.permissions.map(function(k){ return '<li>'+esc(labels[k]||k)+'</li>'; }).join('')||'<li>None beyond the basics</li>')+'</ul><h4 style="margin:12px 0 6px;">Menu pages</h4><div style="display:flex;gap:6px;flex-wrap:wrap;">'+r.pages.map(function(k){ return '<span class="tag tag-gray">'+esc(pl[k]||k)+'</span>'; }).join('')+'</div>', '<button class="btn btn-secondary" data-action="close-modal">Close</button>');
+}
+function openRolePeople(r){
+  var m = openModal('md','People with the role: '+esc(r.name),'<div id="rpBox">'+loadingRows(3)+'</div>','<button class="btn btn-secondary" data-action="close-modal">Done</button>');
+  api('admin.listUsers', {}).then(function(users){
+    function draw(){
+      var has = users.filter(function(u){ return u.Role===r.name; }), others = users.filter(function(u){ return u.Role!==r.name && u.Role!=='SuperAdmin' && u.IsActive!==false; });
+      $id('rpBox').innerHTML = '<div style="display:flex;gap:8px;margin-bottom:14px;"><select class="fc" id="rpSel"><option value="">Choose a person to add…</option>'+others.map(function(u){ return '<option value="'+u.UserID+'">'+esc(u.FullName)+' ('+esc(u.Role)+')</option>'; }).join('')+'</select><button class="btn btn-primary btn-sm" id="rpAdd">Assign</button></div>' +
+        (has.length ? has.map(function(u){ return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border);">'+avatarHtml(u.FullName,'sm')+'<div style="flex:1;"><strong>'+esc(u.FullName)+'</strong><div style="font-size:12px;color:var(--muted);">'+esc(u.Email)+'</div></div><button class="btn btn-ghost btn-sm" data-rm="'+u.UserID+'">Remove</button></div>'; }).join('') : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Nobody has this role yet.</div>');
+      $id('rpAdd').addEventListener('click', function(){ var id = $id('rpSel').value; if(!id) return; setRole(id, r.name); });
+      Array.prototype.forEach.call($id('rpBox').querySelectorAll('[data-rm]'), function(b){ b.addEventListener('click', function(){ setRole(b.dataset.rm, 'Member'); }); });
+    }
+    function setRole(uid, role){ api('admin.setUserRole',{userId:uid, role:role}).then(function(list){ users = list; toast('Role updated. The person sees the change next time they open the app.','success'); draw(); api('roles.list',{}).then(function(x){ ROLES_D = x; }); }).catch(saErr); }
+    draw();
+  }).catch(saErr);
+}
+
+/* ============================================================================
  * MULTI-TENANT FRONT DOOR: signup, trial banner, public-site routing, demo data
  * ==========================================================================*/
 var ORG_TYPES = ['JCI chapter','Rotary / Lions club','Church or ministry','NGO / non-profit','Alumni association','Professional association','Cooperative / thrift group','School or club','Other'];
@@ -5168,6 +5255,32 @@ function demoTenantRoute(action, data){
       var avg = moods.length ? Math.round(moods.reduce(function(s,r){ return s+Number(r.Score); },0)/moods.length*10)/10 : 0, topics = {}, people = {};
       rows.forEach(function(r){ people[r.UserID]=1; if(r.Topic==='voice') return; var t = topics[r.Topic] = topics[r.Topic]||{}; t[r.Answer] = (t[r.Answer]||0)+1; });
       return { handled:true, value:{ enabled:d.careOn!==false, responses:rows.length, participants:Object.keys(people).length, activeMembers:14, avgMood:avg, moodDist:dist, trend:[{label:'3w ago',avg:0,n:0},{label:'2w ago',avg:0,n:0},{label:'1w ago',avg:0,n:0},{label:'This week',avg:avg,n:moods.length}], topics:topics, followUps:rows.filter(function(r){ return r.Flag==='Follow up'; }), recent:rows.slice(0,40) } };
+    }
+  }
+  if(action.indexOf('roles.') === 0){
+    d.roles = d.roles || []; d.tpls = d.tpls || [];
+    var catalog = PERM_CATALOG_FALLBACK.filter(function(p){ return !p.locked && p.key!=='superadmin.access'; }).map(function(p){ return {key:p.key, group:p.group, label:p.label}; });
+    var pagesL = NAV_CFG_FALLBACK.filter(function(n){ return n.page!=='superadmin' && n.page!=='roles'; }).map(function(n){ return {page:n.page,label:n.label}; });
+    var uC = {}; (DEMO_DB && DEMO_DB.users || []).forEach(function(u){ uC[u.Role] = (uC[u.Role]||0)+1; });
+    var mk = function(r,src){ return { id:r.id, name:r.name, description:r.description||'', permissions:r.permissions, pages:r.pages, active:true, source:src, users:uC[r.name]||0 }; };
+    var listAll = function(){
+      var built = ['President','Treasurer','Executive','Director','Member'].concat(STATE.user && STATE.user.Role==='SuperAdmin' ? ['SuperAdmin'] : []).map(function(n){ return { id:'built:'+n, name:n, source:'builtin', description:'', active:true, users:uC[n]||0, permissions:catalog.filter(function(p){ var def = PERM_CATALOG_FALLBACK.filter(function(x){ return x.key===p.key; })[0]; return def.roles.indexOf(n)!==-1; }).map(function(p){ return p.key; }), pages:NAV_CFG_FALLBACK.filter(function(x){ return x.page!=='superadmin' && x.roles.indexOf(n)!==-1; }).map(function(x){ return x.page; }) }; });
+      return { builtIn:built, custom:d.roles.map(function(r){ return mk(r,'org'); }).concat(d.tpls.map(function(r){ return mk(r,'platform'); })), catalog:catalog, pages:pagesL, canGrant:catalog.map(function(p){ return p.key; }), isSuper:STATE.user && STATE.user.Role==='SuperAdmin' };
+    };
+    if(action === 'roles.options') return { handled:true, value:d.roles.concat(d.tpls).map(function(r){ return r.name; }) };
+    if(action === 'roles.list') return { handled:true, value:listAll() };
+    if(action === 'roles.save'){
+      var nm = String(data.name||'').trim(); if(nm.length<2) thr('Give the role a name of 2 to 40 characters.');
+      if(['SuperAdmin','President','Treasurer','Executive','Director','Member'].some(function(x){ return x.toLowerCase()===nm.toLowerCase(); })) thr('That name is used by a built-in role. Choose another.');
+      var bucket = data.scope==='platform' ? d.tpls : d.roles, ex = data.roleId ? bucket.filter(function(r){ return r.id===data.roleId; })[0] : null;
+      if(d.roles.concat(d.tpls).some(function(r){ return r.name.toLowerCase()===nm.toLowerCase() && (!ex || r.id!==ex.id); })) thr('A role with that name already exists.');
+      if(ex){ ex.description = data.description; ex.permissions = data.permissions; ex.pages = data.pages; } else { d.seq++; bucket.push({ id:'ROL-'+('000000'+d.seq).slice(-6), name:nm, description:data.description, permissions:data.permissions, pages:data.pages }); }
+      demoTSave(); return { handled:true, value:listAll() };
+    }
+    if(action === 'roles.delete'){
+      var all = d.roles.concat(d.tpls), rr = all.filter(function(r){ return r.id===data.roleId; })[0];
+      if(rr && uC[rr.name]) thr(uC[rr.name]+' people still have this role. Move them to another role first.');
+      d.roles = d.roles.filter(function(r){ return r.id!==data.roleId; }); d.tpls = d.tpls.filter(function(r){ return r.id!==data.roleId; }); demoTSave(); return { handled:true, value:listAll() };
     }
   }
   if(action === 'sites.list') return { handled:true, value:{ sites:d.sites.map(strip).reverse(), baseUrl:'' } };
