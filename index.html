@@ -803,6 +803,7 @@ img,svg,video,canvas{max-width:100%;}
         <div class="pg" id="pg-superadmin"></div>
         <div class="pg" id="pg-campaigns"></div>
         <div class="pg" id="pg-sites"></div>
+        <div class="pg" id="pg-care"></div>
 
       </div>
     </div>
@@ -1109,7 +1110,7 @@ function enableDark(on){
 /* -------------------- navigation -------------------- */
 var ICONS = {
   grid:'▦', users:'👥', wallet:'💳', calendar:'📅', check:'✅', file:'📄', layers:'🗂️',
-  bar:'📊', megaphone:'📣', globe:'🌐', bell:'🔔', user:'👤', settings:'⚙️', shield:'🛡️', clipboard:'📋', leave:'🌴', audit:'📜'
+  bar:'📊', megaphone:'📣', globe:'🌐', bell:'🔔', user:'👤', settings:'⚙️', shield:'🛡️', clipboard:'📋', leave:'🌴', audit:'📜', heart:'💗'
 };
 
 function renderSidebar(){
@@ -1139,6 +1140,7 @@ function renderSidebar(){
 }
 
 function canAccessClient(page){
+  if(page === 'care') return true;   /* wellbeing page is open to every plan */
   if(page === 'superadmin') return STATE.user && STATE.user.Role === 'SuperAdmin';   /* platform tool: never plan-gated */
   var limits = STATE.planLimits[STATE.plan] || {pages:[]};
   if(limits.pages.indexOf(page) === -1) return false;
@@ -1164,7 +1166,7 @@ function go(page){
   document.getElementById('mobileTitle').textContent = label;
   closeSidebarMobile();
 
-  var alwaysFresh = page === 'dashboard' || page === 'members' || page === 'directorates' || page === 'projects' || page === 'leave' || page === 'auditlog' || page === 'campaigns' || page === 'sites';
+  var alwaysFresh = page === 'dashboard' || page === 'members' || page === 'directorates' || page === 'projects' || page === 'leave' || page === 'auditlog' || page === 'campaigns' || page === 'sites' || page === 'care';
   if(alwaysFresh || !STATE.pageLoaded[page]){
     renderPage(page);
     if(!alwaysFresh) STATE.pageLoaded[page] = true;
@@ -1173,7 +1175,7 @@ function go(page){
 
 function renderPage(page){
   var fns = {
-    campaigns: renderCampaigns, sites: renderSites, dashboard: renderDashboard, members: renderMembers, finance: renderFinance,
+    campaigns: renderCampaigns, sites: renderSites, care: renderCare, dashboard: renderDashboard, members: renderMembers, finance: renderFinance,
     meetings: renderMeetings, attendance: renderAttendance, requests: renderRequests,
     directorates: renderDirectorates, reports: renderReports, mypayments: renderMyPayments,
     myattendance: renderMyAttendance, notifications: renderNotifications, profile: renderProfile,
@@ -2635,6 +2637,7 @@ function doLogin(){
       applySession(res);
       showView('v-app'); go('dashboard'); refreshNotifCount();
       toast('Welcome back, '+res.user.FullName.split(' ')[0]+'.','success');
+      setTimeout(function(){ if(typeof careGreet==='function') careGreet(); }, 1600);
     }
   }).catch(function(err){
     errBox.textContent = err.message || 'Incorrect email or password.'; errBox.style.display='block';
@@ -2676,6 +2679,7 @@ var NAV_CFG_FALLBACK = [
   { page:'projects',label:'Projects',icon:'clipboard',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
   { page:'leave',label:'Leave Requests',icon:'leave',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
   { page:'campaigns',label:'Campaigns',icon:'megaphone',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
+  { page:'care',label:'Care',icon:'heart',roles:['SuperAdmin','President','Treasurer','Executive','Director','Member'] },
   { page:'sites',label:'Event Sites',icon:'globe',roles:['SuperAdmin','President','Treasurer','Executive','Director'] },
   { page:'reports',label:'Reports',icon:'bar',roles:['SuperAdmin','President','Treasurer'] },
   { page:'mypayments',label:'My Payments',icon:'wallet',roles:['Member'] },
@@ -2990,7 +2994,7 @@ var EMOJI_ICON = {
   '📊':'bar','🚩':'flag','←':'arrowl','👤':'user','🌴':'plane','📜':'history',
   '📈':'trend','☀':'sun','🌙':'moon','☰':'menu','✕':'x','✖':'x','⚙':'settings',
   '🛡':'shield','🔒':'lock','✉':'mail','👋':'spark','🆕':'usernew',
-  '📣':'megaphone','🌐':'globe','🎂':'cake','🎉':'gift','⏳':'clock','📤':'send','📎':'clip','🗑':'trash','▦':'grid'
+  '📣':'megaphone','💗':'heart','🌐':'globe','🎂':'cake','🎉':'gift','⏳':'clock','📤':'send','📎':'clip','🗑':'trash','▦':'grid'
 };
 var EMOJI_RE = /(?:\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDC00-\uDFFF]|[←-⇿⌀-⏿▦☀-➿⬀-⯿])️?/g;
 function svgIcon(name){
@@ -3092,6 +3096,8 @@ var PERM_CATALOG_FALLBACK = [
   { key:'campaigns.view',   group:'Campaigns', label:'View published campaigns',                     roles:ALL_ROLES },
   { key:'campaigns.manage', group:'Campaigns', label:'Design and edit campaigns (flyers)',           roles:['SuperAdmin','President','Executive','Director'] },
   { key:'campaigns.send',   group:'Campaigns', label:'Email campaigns to members',                   roles:['SuperAdmin','President','Executive'] },
+  { key:'care.view',       group:'Care',      label:'See member wellbeing check-ins and follow-ups', roles:['SuperAdmin','President','Executive'] },
+  { key:'care.manage',     group:'Care',      label:'Turn member care messages on or off',          roles:['SuperAdmin','President'] },
   { key:'sites.manage',     group:'Campaigns', label:'Build event websites and see registrations',   roles:['SuperAdmin','President','Executive','Director'] },
   { key:'ai.use',           group:'AI',        label:'Use the AI assistant',                         roles:['SuperAdmin','President','Treasurer','Executive','Director'] },
   { key:'settings.manage',  group:'Admin',     label:'Organisation settings and directorates',       roles:['SuperAdmin','President'] },
@@ -4717,7 +4723,7 @@ function siteHtml(cfg, meta, mode){
 }
 function siteUrl(slug, baseUrl){
   var here = location.href.split('#')[0].split('?')[0];
-  var base = (APP && APP.mode === 'gas') ? (baseUrl || here) : here;
+  var base = (APP && (APP.mode === 'gas' || APP.mode === 'remote')) ? (baseUrl || here) : here;
   return base + '?site=' + encodeURIComponent(slug);
 }
 
@@ -4927,6 +4933,124 @@ function renderLeads(){
 }
 
 /* ============================================================================
+ * MEMBER CARE: personal greetings, gentle check-ins and a leadership pulse
+ * ==========================================================================*/
+SVG_ICONS.heart = '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>';
+var CARE_CSS = '.care-pop{position:fixed;right:20px;bottom:20px;width:384px;max-width:calc(100vw - 24px);background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:20px;box-shadow:0 20px 60px rgba(15,23,42,.28);z-index:260;overflow:hidden;animation:careUp .45s cubic-bezier(.2,.9,.3,1.1);}' +
+ '@keyframes careUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}' +
+ '.care-top{display:flex;gap:12px;align-items:center;padding:16px 18px;background:linear-gradient(135deg,var(--brand,#2563EB),#EC4899);color:#fff;}' +
+ '.care-top .care-h{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex:0 0 40px;}' +
+ '.care-top .care-h .ico{width:20px;height:20px;stroke:#fff;fill:rgba(255,255,255,.35);}' +
+ '.care-top strong{display:block;font-size:15px;line-height:1.25;}.care-top small{opacity:.85;font-size:12px;}' +
+ '.care-x{margin-left:auto;background:rgba(255,255,255,.18);border:0;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1;}' +
+ '.care-body{padding:16px 18px 6px;font-size:14px;line-height:1.65;}' +
+ '.care-ask{padding:4px 18px 8px;}.care-ask .q{font-weight:700;font-size:14px;margin:10px 0 10px;}' +
+ '.care-faces{display:flex;gap:6px;justify-content:space-between;}.care-face{flex:1;border:1px solid var(--border);background:var(--bg,transparent);border-radius:14px;padding:8px 2px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font:600 10.5px/1.1 inherit;font-family:inherit;color:var(--muted);transition:.15s;}' +
+ '.care-face:hover{transform:translateY(-3px);border-color:var(--brand);color:var(--ink);}.care-face svg{width:34px;height:34px;}' +
+ '.care-chips{display:flex;flex-wrap:wrap;gap:8px;}.care-chip{border:1px solid var(--border2,var(--border));background:var(--surface);color:var(--ink);padding:8px 12px;border-radius:99px;font:600 12.5px/1 inherit;font-family:inherit;cursor:pointer;transition:.15s;}.care-chip:hover{background:var(--brand-l);border-color:var(--brand);}' +
+ '.care-ask textarea{width:100%;min-height:74px;resize:vertical;}' +
+ '.care-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 18px 14px;font-size:11.5px;color:var(--muted);}' +
+ '.care-foot button{background:none;border:0;color:var(--muted);cursor:pointer;font:600 12px/1 inherit;font-family:inherit;padding:6px 4px;text-decoration:underline;}' +
+ '.care-act{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 6px;}' +
+ '.care-priv{font-size:11px;color:var(--muted);padding:0 18px 4px;}' +
+ '@media(max-width:600px){.care-pop{right:0;left:0;bottom:0;width:100%;max-width:100%;border-radius:20px 20px 0 0;}}' +
+ '.mood-bar{display:flex;align-items:center;gap:10px;font-size:12.5px;margin:7px 0;}.mood-bar .lb{width:84px;color:var(--muted);}.mood-bar .tr{flex:1;height:10px;background:var(--border);border-radius:99px;overflow:hidden;}.mood-bar .tr i{display:block;height:100%;border-radius:99px;}' +
+ '.care-sw{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;}.care-sw input{width:18px;height:18px;accent-color:var(--brand);}';
+function ensureCareCss(){ if($id('careCss')) return; var s = document.createElement('style'); s.id = 'careCss'; s.textContent = CARE_CSS; document.head.appendChild(s); }
+
+var CARE_FACE_COLORS = ['#EF4444','#F59E0B','#EAB308','#84CC16','#10B981'];
+function careFace(n){
+  var c = CARE_FACE_COLORS[n-1], mouths = ['M9 25q7-7 14 0','M10 25q6-4 12 0','M10 24h12','M9.5 22q6.5 5 13 0','M8.5 21q7.5 8 15 0'];
+  return '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="'+c+'" fill-opacity=".18" stroke="'+c+'" stroke-width="2"/><circle cx="11.5" cy="13" r="1.8" fill="'+c+'"/><circle cx="20.5" cy="13" r="1.8" fill="'+c+'"/><path d="'+mouths[n-1]+'" fill="none" stroke="'+c+'" stroke-width="2" stroke-linecap="round"/></svg>';
+}
+function careHello(first){
+  var h = new Date().getHours(), part = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
+  return part + ', ' + first;
+}
+function closeCare(){ var p = $id('carePop'); if(p) p.remove(); }
+
+function careGreet(force){
+  if(!STATE.user) return;
+  if(!force){ try{ if(sessionStorage.getItem('care_shown')) return; }catch(e){} }
+  api('care.next', {}).then(function(r){
+    if(!r || !r.enabled) return;
+    try{ sessionStorage.setItem('care_shown','1'); }catch(e){}
+    showCare(r);
+  }).catch(function(){});
+}
+
+function showCare(r){
+  ensureCareCss(); closeCare();
+  var pop = document.createElement('div'); pop.id = 'carePop'; pop.className = 'care-pop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','A note from your chapter');
+  var sub = r.kind==='birthday' ? 'A special day' : (r.kind==='welcome' ? 'Welcome to the family' : 'A little note for you');
+  var html = '<div class="care-top"><span class="care-h">'+ic('heart')+'</span><div><strong>'+esc(careHello(r.firstName))+'</strong><small>'+sub+'</small></div><button class="care-x" aria-label="Close" data-c="skip">×</button></div>' +
+    '<div class="care-body">'+(r.lines||[]).map(function(l){ return '<p style="margin:0 0 8px;">'+esc(l)+'</p>'; }).join('')+'</div>';
+  if(r.actions && r.actions.length) html += '<div class="care-act">'+r.actions.map(function(a){ return '<button class="btn btn-outline btn-sm" data-go="'+esc(a.page)+'">'+esc(a.label)+'</button>'; }).join('')+'</div>';
+  var ask = r.ask;
+  if(ask){
+    html += '<div class="care-ask" id="careAsk"><div class="q">'+esc(ask.question)+'</div>';
+    if(ask.type==='scale') html += '<div class="care-faces">'+ask.options.map(function(o){ return '<button class="care-face" data-v="'+esc(o.v)+'" data-s="'+o.score+'">'+careFace(Number(o.v))+'<span>'+esc(o.label)+'</span></button>'; }).join('')+'</div>';
+    else if(ask.type==='choice') html += '<div class="care-chips">'+ask.options.map(function(o){ return '<button class="care-chip" data-v="'+esc(o.v)+'" data-s="'+o.score+'">'+esc(o.label)+'</button>'; }).join('')+'</div>';
+    else html += '<textarea class="fc" id="careTxt" maxlength="600" placeholder="Type here, it is only seen by your leadership"></textarea><div style="margin-top:8px;"><button class="btn btn-primary btn-sm" data-c="send">Send</button></div>';
+    html += '</div><div class="care-priv">Your answer is seen only by chapter leadership.</div>';
+  }
+  html += '<div class="care-foot"><button data-c="skip">Not now</button><button data-c="off">Stop these messages</button></div>';
+  pop.innerHTML = html; document.body.appendChild(pop);
+  if(r.seenTopic) api('care.respond',{kind:'seen',topic:r.seenTopic}).catch(function(){});
+  try{ if('Notification' in window && Notification.permission==='granted' && document.hidden) new Notification(careHello(r.firstName), { body:(r.lines||[''])[0] }); }catch(e){}
+  function thank(msg){
+    var box = $id('careAsk'); if(box) box.outerHTML = '<div class="care-body" style="font-weight:600;">'+esc(msg||'Thank you.')+'</div>';
+    var pv = pop.querySelector('.care-priv'); if(pv) pv.remove();
+    setTimeout(closeCare, 4200);
+  }
+  function send(val, score){
+    api('care.respond',{kind:'answer',topic:ask.topic,answer:val,score:score}).then(function(x){ thank(x && x.thanks); }).catch(function(e){ toast((e&&e.message)||'Could not save your answer.','error'); });
+  }
+  pop.addEventListener('click', function(e){
+    var go_ = e.target.closest('[data-go]'); if(go_){ closeCare(); go(go_.dataset.go); return; }
+    var opt = e.target.closest('[data-v]'); if(opt && ask){ send(opt.dataset.v, Number(opt.dataset.s)||0); return; }
+    var c = e.target.closest('[data-c]'); if(!c) return; var a = c.dataset.c;
+    if(a==='send'){ var v = ($id('careTxt').value||'').trim(); if(!v){ toast('Type a few words first.','info'); return; } send(v, 0); }
+    if(a==='skip'){ if(ask) api('care.respond',{kind:'skip',topic:ask.topic}).catch(function(){}); closeCare(); }
+    if(a==='off'){ api('care.setMine',{off:true}).then(function(){ closeCare(); toast('Done. You can turn care messages back on from the Care page.','info'); }).catch(function(){}); }
+  });
+}
+
+/* ---------- Care page ---------- */
+function renderCare(){
+  var el = $id('pg-care'); ensureCareCss();
+  el.innerHTML = '<div class="skel" style="height:140px;margin-bottom:14px;"></div><div class="skel" style="height:260px;"></div>';
+  var leader = can('care.view');
+  Promise.all([api('care.mine',{}), leader ? api('care.pulse',{}) : Promise.resolve(null)]).then(function(rs){
+    var mine = rs[0] || {}, p = rs[1];
+    var notifOk = ('Notification' in window), perm = notifOk ? Notification.permission : 'denied';
+    var h = '<div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;"><span class="sc-icon" style="width:44px;height:44px;border-radius:12px;background:#FCE7F3;color:#DB2777;display:flex;align-items:center;justify-content:center;flex:0 0 44px;">'+ic('heart')+'</span><div style="flex:1;min-width:240px;"><strong style="font-size:16px;">Care check-ins</strong><p style="margin:6px 0 12px;color:var(--muted);font-size:13px;line-height:1.6;">When you sign in, your chapter says hello and sometimes asks how you are, how business is going, or how the family is. It is simply a way of showing we care. Answers are visible only to chapter leadership, and you can always say "Not now".</p>' +
+      (mine.enabled===false ? '<span class="tag tag-gray">Switched off by your organisation</span>' : '<label class="care-sw"><input type="checkbox" id="careMine" '+(mine.off?'':'checked')+'> Show me care messages</label>') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button class="btn btn-outline btn-sm" id="carePrev">Preview a message</button>'+(notifOk && perm!=='granted' && perm!=='denied' ? '<button class="btn btn-outline btn-sm" id="careNotif">Allow browser pop-ups</button>' : '')+(perm==='granted'?'<span class="tag tag-green">Browser pop-ups on</span>':'')+'</div></div></div></div>';
+    if(p){
+      var pct = p.activeMembers ? Math.round(p.participants / p.activeMembers * 100) : 0;
+      function kpi(l,v,cls,icn){ return '<div class="stat-card '+cls+'"><div class="sc-top"><span style="font-size:12px;color:var(--muted);font-weight:600;">'+l+'</span><span class="sc-icon">'+ic(icn)+'</span></div><div style="font-size:26px;font-weight:700;">'+v+'</div></div>'; }
+      var labels = ['Struggling','Low','Okay','Good','Great'], dmax = Math.max.apply(null, p.moodDist.concat([1]));
+      var tmax = 5, tp = Object.keys(p.topics);
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:6px 0 12px;"><strong style="font-size:15px;">Member wellbeing, last 30 days</strong>' + (can('care.manage') ? '<label class="care-sw"><input type="checkbox" id="careOrg" '+(p.enabled?'checked':'')+'> Care messages on for everyone</label>' : '') + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">'+kpi('Members reached',p.participants+' ('+pct+'%)','blue','users')+kpi('Average mood',p.avgMood?p.avgMood+' / 5':'No data','green','heart')+kpi('Check-ins',p.responses,'blue','check')+kpi('Need a follow-up',p.followUps.length,p.followUps.length?'amber':'green','bell')+'</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px;">' +
+        '<div class="card"><strong style="font-size:14px;">How members feel</strong><div style="margin-top:10px;">'+p.moodDist.map(function(n,i){ return '<div class="mood-bar"><span class="lb">'+labels[i]+'</span><span class="tr"><i style="width:'+(n/dmax*100)+'%;background:'+CARE_FACE_COLORS[i]+';"></i></span><b>'+n+'</b></div>'; }).join('')+'</div>' +
+        '<div style="margin-top:14px;font-size:12px;color:var(--muted);">Weekly average</div><div style="display:flex;gap:8px;margin-top:6px;">'+p.trend.map(function(t){ return '<div style="flex:1;text-align:center;"><div style="height:60px;display:flex;align-items:flex-end;"><div style="width:100%;height:'+(t.avg?Math.max(8,t.avg/5*60):3)+'px;background:var(--brand);border-radius:6px 6px 0 0;opacity:'+(t.avg?1:.25)+';"></div></div><div style="font-size:11px;font-weight:700;">'+(t.avg||'-')+'</div><div style="font-size:10px;color:var(--muted);">'+t.label+'</div></div>'; }).join('')+'</div></div>' +
+        '<div class="card"><strong style="font-size:14px;">Business, family, rest and the chapter</strong><div style="margin-top:10px;">'+(tp.length ? tp.map(function(t){ var a = p.topics[t], tot = Object.keys(a).reduce(function(s,k){ return s+a[k]; },0); return '<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:700;text-transform:capitalize;margin-bottom:4px;">'+esc(t)+' <span style="color:var(--muted);font-weight:500;">('+tot+')</span></div>'+Object.keys(a).sort(function(x,y){ return a[y]-a[x]; }).map(function(k){ return '<div class="mood-bar" style="margin:3px 0;"><span class="lb" style="width:128px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(t==='mood'?(labels[Number(k)-1]||k):k)+'</span><span class="tr"><i style="width:'+(a[k]/tot*100)+'%;background:var(--accent);"></i></span><b>'+a[k]+'</b></div>'; }).join('')+'</div>'; }).join('') : '<span style="color:var(--muted);font-size:13px;">No answers yet. Members are asked a gentle question when they sign in.</span>')+'</div></div></div>';
+      function tbl(rows, empty){ return rows.length ? '<div class="table-wrap"><table class="dtbl"><thead><tr><th>Member</th><th>Topic</th><th>Answer</th><th>When</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+esc(r.UserName)+'</td><td style="text-transform:capitalize;">'+esc(r.Topic)+'</td><td style="max-width:360px;white-space:normal;">'+esc(r.Answer)+'</td><td>'+esc(r._t?new Date(r._t).toLocaleDateString():(r.CreatedAt?new Date(r.CreatedAt).toLocaleDateString():''))+'</td></tr>'; }).join('')+'</tbody></table></div>' : '<div style="padding:22px;text-align:center;color:var(--muted);font-size:13px;">'+empty+'</div>'; }
+      h += '<div class="card" style="margin-bottom:14px;"><strong style="font-size:14px;">People to check in on</strong><p style="color:var(--muted);font-size:12.5px;margin:4px 0 10px;">Members who said they are struggling, under pressure, or left a message for leadership. A phone call or a kind word goes a long way.</p>'+tbl(p.followUps,'Nobody needs a follow-up right now.')+'</div>' +
+        '<div class="card"><strong style="font-size:14px;">Recent answers</strong><div style="margin-top:10px;">'+tbl(p.recent,'No answers yet.')+'</div></div>';
+    }
+    el.innerHTML = h;
+    var m = $id('careMine'); if(m) m.addEventListener('change', function(){ api('care.setMine',{off:!m.checked}).then(function(){ toast(m.checked?'Care messages are on.':'Care messages are off.','success'); }).catch(saErr); });
+    var o = $id('careOrg'); if(o) o.addEventListener('change', function(){ api('care.setEnabled',{enabled:o.checked}).then(function(){ toast(o.checked?'Care messages are on for everyone.':'Care messages are off for everyone.','success'); }).catch(saErr); });
+    var pv = $id('carePrev'); if(pv) pv.addEventListener('click', function(){ careGreet(true); });
+    var nb = $id('careNotif'); if(nb) nb.addEventListener('click', function(){ Notification.requestPermission().then(function(){ renderCare(); }); });
+  }).catch(function(e){ el.innerHTML = '<div class="card" style="color:var(--danger);">'+esc((e&&e.message)||'Could not load this page.')+'</div>'; });
+}
+
+/* ============================================================================
  * MULTI-TENANT FRONT DOOR: signup, trial banner, public-site routing, demo data
  * ==========================================================================*/
 var ORG_TYPES = ['JCI chapter','Rotary / Lions club','Church or ministry','NGO / non-profit','Alumni association','Professional association','Cooperative / thrift group','School or club','Other'];
@@ -5019,6 +5143,33 @@ function demoTenantRoute(action, data){
   if(action === 'superadmin.listOrgs') return { handled:true, value:d.orgs.slice().reverse() };
   if(action === 'superadmin.setOrgPlan'){ d.orgs.forEach(function(o){ if(o.id===data.orgId){ o.plan = data.plan; o.trialEndsAt = ''; } }); demoTSave(); return { handled:true, value:{updated:true} }; }
   if(action === 'superadmin.setOrgStatus'){ d.orgs.forEach(function(o){ if(o.id===data.orgId) o.status = data.status; }); demoTSave(); return { handled:true, value:{updated:true} }; }
+  if(action.indexOf('care.') === 0){
+    d.care = d.care || []; var me = (STATE.user||{}), now = Date.now(), DAYm = 86400000;
+    if(action === 'care.mine') return { handled:true, value:{ enabled:d.careOn!==false, off:!!(d.careOff||{})[me.UserID] } };
+    if(action === 'care.setMine'){ d.careOff = d.careOff||{}; d.careOff[me.UserID] = !!data.off; demoTSave(); return { handled:true, value:{off:!!data.off} }; }
+    if(action === 'care.setEnabled'){ d.careOn = !!data.enabled; demoTSave(); return { handled:true, value:{enabled:!!data.enabled} }; }
+    if(action === 'care.next'){
+      if(d.careOn===false || (d.careOff||{})[me.UserID]) return { handled:true, value:{enabled:false} };
+      var first = String(me.FullName||'friend').split(' ')[0], mineR = d.care.filter(function(r){ return r.UserID===me.UserID; });
+      var lastA = mineR.filter(function(r){ return r.Kind==='answer'; }).length, lastT = 0; mineR.forEach(function(r){ if(r.Kind==='answer'||r.Kind==='skip') lastT = Math.max(lastT, new Date(r.CreatedAt).getTime()); });
+      var asks = [['mood','scale','How are you feeling today?',[['1','Struggling',1],['2','Low',2],['3','Okay',3],['4','Good',4],['5','Great',5]]],['business','choice','How is your business or work going lately?',[['Growing well','Growing well',5],['Steady','Steady',4],['A bit slow','A bit slow',3],['Tough right now','Tough right now',2],['Prefer not to say','I would rather not say',0]]],['mood','scale','How are you feeling today?',[['1','Struggling',1],['2','Low',2],['3','Okay',3],['4','Good',4],['5','Great',5]]],['family','choice','How are things with the family?',[['All good','All good, thank God',5],['Busy but fine','Busy but fine',4],['Some pressure','Some pressure at home',2],['Prefer not to say','I would rather not say',0]]],['voice','text','Is there anything on your mind you would like the leadership to know?',[]]];
+      var a = asks[lastA % asks.length], ask = (now - lastT > DAYm) ? { id:a[0], type:a[1], topic:a[0], question:a[2], options:a[3].map(function(o){ return {v:o[0],label:o[1],score:o[2]}; }) } : null;
+      var lines = ['Hope you are doing well today, '+first+'. You matter to this chapter, and we are glad you are here.'], kind = 'warm', actions = [];
+      if(me.Role==='Member' && lastA % 2 === 0){ kind='dues'; lines = ['A gentle note, '+first+': your dues are still open. No pressure at all. When you are able, a payment keeps you in good standing, and if things are tight, please speak with the Treasurer.']; actions = [{label:'View my payments', page:'mypayments'}]; }
+      return { handled:true, value:{ enabled:true, firstName:first, kind:kind, lines:lines, actions:actions, ask:ask, seenTopic:'' } };
+    }
+    if(action === 'care.respond'){
+      var sc = Number(data.score)||0; d.care.push({ RespID:'CRE-'+(d.care.length+1), UserID:me.UserID, UserName:me.FullName||'Demo User', Kind:data.kind, Topic:data.topic||'', Answer:data.answer||'', Score:sc||'', Flag:((sc>=1&&sc<=2)||(data.topic==='voice'&&data.answer))?'Follow up':'', CreatedAt:new Date().toISOString() }); demoTSave();
+      return { handled:true, value:{ saved:true, thanks: data.kind==='answer' ? (sc>=1&&sc<=2 ? 'Thank you for being honest with us. You are not alone, and your chapter family is here for you.' : 'Thank you for sharing. We are rooting for you.') : '' } };
+    }
+    if(action === 'care.pulse'){
+      var rows = d.care.filter(function(r){ return r.Kind==='answer'; }).map(function(r){ return Object.assign({_t:new Date(r.CreatedAt).getTime()}, r); }).reverse();
+      var moods = rows.filter(function(r){ return r.Topic==='mood'; }), dist = [0,0,0,0,0]; moods.forEach(function(r){ var k = Number(r.Score); if(k>=1&&k<=5) dist[k-1]++; });
+      var avg = moods.length ? Math.round(moods.reduce(function(s,r){ return s+Number(r.Score); },0)/moods.length*10)/10 : 0, topics = {}, people = {};
+      rows.forEach(function(r){ people[r.UserID]=1; if(r.Topic==='voice') return; var t = topics[r.Topic] = topics[r.Topic]||{}; t[r.Answer] = (t[r.Answer]||0)+1; });
+      return { handled:true, value:{ enabled:d.careOn!==false, responses:rows.length, participants:Object.keys(people).length, activeMembers:14, avgMood:avg, moodDist:dist, trend:[{label:'3w ago',avg:0,n:0},{label:'2w ago',avg:0,n:0},{label:'1w ago',avg:0,n:0},{label:'This week',avg:avg,n:moods.length}], topics:topics, followUps:rows.filter(function(r){ return r.Flag==='Follow up'; }), recent:rows.slice(0,40) } };
+    }
+  }
   if(action === 'sites.list') return { handled:true, value:{ sites:d.sites.map(strip).reverse(), baseUrl:'' } };
   if(action === 'sites.get'){ var s = d.sites.filter(function(x){ return x.SiteID===data.siteId; })[0]; if(!s) thr('Site not found.'); return { handled:true, value:Object.assign({}, s, { baseUrl:'' }) }; }
   if(action === 'sites.save'){
