@@ -594,6 +594,29 @@ img,svg,video,canvas{max-width:100%;}
   .lp2 .lp-cta{padding:44px 22px;}
 }
 @media print{#sidebar,#topbar,#mobileTopbar,#trialBar,.sidebar-scrim,.rp-top button,#toastHost{display:none !important;}#contentScroll{padding:0 !important;overflow:visible !important;height:auto !important;}.rp-card,.rp-stat{break-inside:avoid;}}
+
+/* billing + languages */
+.bil-seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.bil-seg button{background:var(--surface);border:0;padding:7px 14px;cursor:pointer;font:inherit;font-weight:600;font-size:13px;color:var(--ink2);}
+.bil-seg button.on{background:var(--theme-brand,#2563EB);color:#fff;}
+.bil-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;}
+.bil-card{border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--surface);}
+.bil-card.cur{border-color:var(--theme-brand,#2563EB);box-shadow:0 0 0 2px rgba(37,99,235,.15);}
+.bil-card .pname{font-weight:700;}
+.bil-card ul{list-style:none;padding:0;margin:0 0 8px;font-size:13px;color:var(--ink2);flex:1;display:flex;flex-direction:column;gap:4px;}
+.bil-price{font-size:24px;font-weight:800;}
+.bil-price span{font-size:12px;font-weight:500;color:var(--muted);}
+.bil-bank{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;font-size:13px;cursor:pointer;line-height:1.6;}
+.bil-k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+.lang-sel{border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:9px;padding:6px 8px;font:inherit;font-size:13px;cursor:pointer;max-width:130px;}
+.lang-lp{margin-inline-end:8px;}
+.lang-auth{position:absolute;top:12px;inset-inline-end:12px;z-index:2;}
+.auth-card{position:relative;}
+body.rtl{text-align:right;}
+body.rtl .dtbl th,body.rtl .dtbl td{text-align:right;}
+body.rtl #sidebar{border-right:0;border-left:1px solid var(--border);}
+body.rtl .tab svg.ico,body.rtl .btn svg.ico{margin-inline-start:0;}
+@media (max-width:900px){ body.rtl #sidebar{left:auto;right:0;transform:translateX(105%);} body.rtl #sidebar.open{transform:translateX(0);} }
 </style>
 </head>
 <body>
@@ -1031,7 +1054,8 @@ function avatarHtml(name, size){
 }
 function fmtNaira(n){
   n = Number(n)||0;
-  return '\u20A6' + n.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
+  var __c = (typeof STATE !== 'undefined' && STATE.org && STATE.org.currency) || 'NGN';
+  return (typeof CUR_SYMBOLS !== 'undefined' && CUR_SYMBOLS[__c] ? CUR_SYMBOLS[__c] : (__c === 'NGN' ? '\u20A6' : __c + ' ')) + n.toLocaleString(__c === 'NGN' ? 'en-NG' : 'en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function fmtDate(d){
   if(!d) return '—';
@@ -2509,7 +2533,7 @@ function renderAdmin(){
         '<div class="fg"><label class="fl">Signatory title</label><input class="fc" id="rcSigTitle" placeholder="e.g. Treasurer" value="'+esc(org.signatoryTitle||'')+'"></div>' +
         '<div class="fg"><label class="fl">Receipt note (optional)</label><input class="fc" id="rcNote" placeholder="e.g. Thank you for your commitment" value="'+esc(org.receiptNote||'')+'"></div>' +
         '<p style="font-size:12px;color:var(--muted);">Saved with the button above.</p>' +
-      '</div>' +
+      '</div>' + billAdminHtml() +
       '<div class="card"><h4 style="margin-top:0;">Messaging channels</h4><p style="font-size:13px;color:var(--muted);margin-top:0;">Choose how your organisation sends email, SMS and WhatsApp messages.</p><div id="admChanStatus" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div><button class="btn btn-primary" id="admChanBtn">Set up email, SMS &amp; WhatsApp</button></div>' + rcDesignerHtml(org) +
       '<div class="card"><h4 style="margin-top:0;">Demo Data</h4><p style="font-size:13px;color:var(--muted);">Seed or clear sample data for demonstrations.</p>' +
         '<div style="display:flex;gap:10px;"><button class="btn btn-outline" id="seedDemoBtn">Seed demo data</button><button class="btn btn-danger" id="clearDemoBtn">Clear demo data</button></div>' +
@@ -2527,7 +2551,7 @@ function renderAdmin(){
       btn.addEventListener('click', function(){ chosenTheme = btn.dataset.theme; applyTheme(chosenTheme, null); Array.prototype.forEach.call(el.querySelectorAll('[data-theme]'), function(b){ b.style.border = '2px solid '+(b.dataset.theme===chosenTheme?'var(--ink)':'transparent'); }); });
     });
     function V(id){ var x = document.getElementById(id); return x ? x.value : ''; }
-    rcDesignerInit();
+    rcDesignerInit(); billAdminInit();
     document.getElementById('admChanBtn').addEventListener('click', function(){ channelsModal(); });
     api('messaging.status',{}).then(function(st){ function t(on,l){ return '<span class="tag '+(on?'tag-green':'tag-gray')+'">'+l+(on?' · ready':' · not set up')+'</span>'; } var h = document.getElementById('admChanStatus'); if(h) h.innerHTML = '<span class="tag '+(st.emailOwn?'tag-green':'tag-blue')+'">Email · '+(st.emailOwn?esc(st.emailMode):'platform sender')+'</span>'+t(st.sms,'SMS')+t(st.whatsapp,'WhatsApp'); }).catch(function(){});
     document.getElementById('saveSettingsBtn').addEventListener('click', function(){
@@ -3296,6 +3320,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 var QRLIB=(function(){var exports,define;
 var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1})},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});;return qrcode;})();
 
+/* qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) */
+var QRLIB=(function(){var exports,define;
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1})},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});;return qrcode;})();
+
+/* qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) */
+var QRLIB=(function(){var exports,define;
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1})},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});;return qrcode;})();
+
+/* qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) */
+var QRLIB=(function(){var exports,define;
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1})},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});;return qrcode;})();
+
 /* ============================================================================
  * PLATFORM LAYER: branding, permissions, pricing, AI catalog, demo platform state
  * ==========================================================================*/
@@ -3362,7 +3398,8 @@ function ic(name){ return SVG_ICONS[name] ? '<svg class="ico" viewBox="0 0 24 24
 function hexRgb(h){ h = String(h||'').replace('#',''); if(h.length===3) h = h.replace(/(.)/g,'$1$1'); var n = parseInt(h,16); return isNaN(n) ? [37,99,235] : [(n>>16)&255,(n>>8)&255,n&255]; }
 function rgbHex(r,g,b){ return '#'+[r,g,b].map(function(v){ v = Math.max(0,Math.min(255,Math.round(v))); return ('0'+v.toString(16)).slice(-2); }).join(''); }
 function shadeHex(hex, pct){ var c = hexRgb(hex), t = pct<0?0:255, p = Math.abs(pct)/100; return rgbHex(c[0]+(t-c[0])*p, c[1]+(t-c[1])*p, c[2]+(t-c[2])*p); }
-function fmtPlanPrice(p){ if(p.price === 0) return 'Free'; if(p.price < 0) return 'Custom'; return '₦' + Number(p.price).toLocaleString('en-NG'); }
+function pubCurrency(){ var c = ''; try{ c = localStorage.getItem('op_pubcur') || ''; }catch(e){} if(c === 'NGN' || c === 'USD') return c; var tz = ''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(e){} return tz === 'Africa/Lagos' ? 'NGN' : 'USD'; }
+function fmtPlanPrice(p){ if(p.price === 0) return 'Free'; if(pubCurrency() === 'USD'){ var u = p.priceUSD != null ? p.priceUSD : PLAN_USD_FALLBACK[p.key]; if(p.price < 0 || u < 0) return 'Custom'; if(u === 0) return 'Free'; return '$' + Number(u).toLocaleString('en-US'); } if(p.price < 0) return 'Custom'; return '₦' + Number(p.price).toLocaleString('en-NG'); }
 function permListForRole(role, catalog, userPerms, userId){
   catalog = catalog || PERM_CATALOG_FALLBACK;
   var ov = userPerms && userPerms[userId];
@@ -3416,12 +3453,15 @@ function publicPlanList(){
   var src = STATE.publicPlans, out = [];
   PLAN_ORDER_CLIENT.forEach(function(name){
     var p = src && src[name] ? src[name] : PLAN_META_FALLBACK[name];
-    out.push({ key:name, label:p.label || name, price:p.price, period:p.period || '', featured:!!p.featured, features:p.features || [] });
+    out.push({ key:name, label:p.label || name, price:p.price, priceUSD:p.priceUSD, period:p.period || '', featured:!!p.featured, features:p.features || [] });
   });
   return out;
 }
 function renderLandingPlans(){
   var host = $id('lpPricingGrid'); if(!host) return;
+  var tog = $id('lpCurTog'); if(!tog){ host.insertAdjacentHTML('beforebegin', '<div id="lpCurTog" style="display:flex;justify-content:center;margin-bottom:18px;"></div>'); tog = $id('lpCurTog'); }
+  tog.innerHTML = '<div class="bil-seg"><button type="button" data-pubcur="NGN" class="'+(pubCurrency()==='NGN'?'on':'')+'">₦ NGN</button><button type="button" data-pubcur="USD" class="'+(pubCurrency()==='USD'?'on':'')+'">$ USD</button></div>';
+  Array.prototype.forEach.call(tog.querySelectorAll('[data-pubcur]'), function(b){ b.addEventListener('click', function(){ try{ localStorage.setItem('op_pubcur', b.dataset.pubcur); }catch(e){} renderLandingPlans(); }); });
   host.innerHTML = publicPlanList().map(function(p){
     return '<div class="price-card'+(p.featured?' featured':'')+'"><div class="pname">'+esc(p.label)+'</div><div class="pamt">'+esc(fmtPlanPrice(p))+' <span>'+esc(p.period)+'</span></div>' +
       '<ul>'+p.features.map(function(f){ return '<li>✓ '+esc(f)+'</li>'; }).join('')+'</ul>' +
@@ -3438,7 +3478,7 @@ function demoPlatform(){
   var plans = {};
   PLAN_ORDER_CLIENT.forEach(function(n){
     var base = PLAN_LIMITS_FALLBACK[n], meta = PLAN_META_FALLBACK[n];
-    plans[n] = { label:meta.label, price:meta.price, maxMembers:base.maxMembers, pages:base.pages.slice(), features:meta.features.slice(), featured:meta.featured, period:meta.period };
+    plans[n] = { label:meta.label, price:meta.price, priceUSD:PLAN_USD_FALLBACK[n], maxMembers:base.maxMembers, pages:base.pages.slice(), features:meta.features.slice(), featured:meta.featured, period:meta.period };
   });
   var perms = {}; PERM_CATALOG_FALLBACK.forEach(function(p){ perms[p.key] = p.roles.slice(); });
   var nav = {}; NAV_CFG_FALLBACK.forEach(function(n){ nav[n.page] = n.roles.slice(); });
@@ -3499,7 +3539,7 @@ function demoPlatformRoute(action, data){
       if(data.logo !== undefined) d.logo = data.logo;
       demoSave(); return H(demoPlatformAll());
     case 'superadmin.savePlans':
-      Object.keys(data.plans||{}).forEach(function(k){ var p = data.plans[k], pages = (p.pages||[]).slice(); ['dashboard','profile','notifications'].forEach(function(c){ if(pages.indexOf(c)===-1) pages.push(c); }); d.plans[k] = {label:p.label||k, price:Number(p.price), maxMembers:Number(p.maxMembers), pages:pages, features:p.features||[], featured:!!p.featured, period:p.period||''}; });
+      Object.keys(data.plans||{}).forEach(function(k){ var p = data.plans[k], pages = (p.pages||[]).slice(); ['dashboard','profile','notifications'].forEach(function(c){ if(pages.indexOf(c)===-1) pages.push(c); }); d.plans[k] = {label:p.label||k, price:Number(p.price), priceUSD:(p.priceUSD===''||p.priceUSD==null||isNaN(Number(p.priceUSD)))?PLAN_USD_FALLBACK[k]:Number(p.priceUSD), maxMembers:Number(p.maxMembers), pages:pages, features:p.features||[], featured:!!p.featured, period:p.period||''}; });
       demoSave(); return H(demoPlatformAll());
     case 'superadmin.savePermissions':
       Object.keys(data.perms||{}).forEach(function(k){ d.perms[k] = data.perms[k]; });
@@ -3586,13 +3626,13 @@ function demoAiList(){
  * ==========================================================================*/
 function renderSuperAdmin(){
   var el = $id('pg-superadmin');
-  var tabs = [['orgs','Organizations','layers'],['ai','AI Models','spark'],['brand','Branding & Platform','palette'],['plans','Pricing Plans','card'],['perms','Roles & Permissions','shield'],['users','Users','users']];
+  var tabs = [['orgs','Organizations','layers'],['ai','AI Models','spark'],['brand','Branding & Platform','palette'],['plans','Pricing Plans','card'],['billing','Billing & payments','card'],['perms','Roles & Permissions','shield'],['users','Users','users']];
   var cur = STATE.cache.saTab || 'orgs';
   el.innerHTML = '<div class="tabs" id="saTabs">'+tabs.map(function(t){ return '<button type="button" class="tab'+(t[0]===cur?' active':'')+'" data-tab="'+t[0]+'">'+ic(t[2])+' '+t[1]+'</button>'; }).join('')+'</div><div id="saBody"></div>';
   Array.prototype.forEach.call(el.querySelectorAll('[data-tab]'), function(b){
     b.addEventListener('click', function(){ STATE.cache.saTab = b.dataset.tab; renderSuperAdmin(); });
   });
-  var body = $id('saBody'), fns = { orgs:saOrgs, ai:saAI, brand:saBrand, plans:saPlans, perms:saPerms, users:saUsers };
+  var body = $id('saBody'), fns = { orgs:saOrgs, ai:saAI, brand:saBrand, plans:saPlans, billing:saBilling, perms:saPerms, users:saUsers };
   (fns[cur] || saOrgs)(body);
 }
 function saErr(e){ toast((e && e.message) || 'Something went wrong.', 'error'); }
@@ -3774,7 +3814,7 @@ function saPlans(body){
         var pl = p.plans[name];
         return '<div class="card plan-ed" data-plan="'+name+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span class="tier-badge tier-'+name.toLowerCase()+'">'+name+'</span><label class="fl" style="display:flex;gap:6px;align-items:center;margin:0;"><input type="checkbox" data-f="featured" '+(pl.featured?'checked':'')+'> Most popular</label></div>' +
           '<div class="fg"><label class="fl">Display name</label><input class="fc" data-f="label" value="'+esc(pl.label)+'"></div>' +
-          '<div class="form-grid"><div class="fg"><label class="fl">Price (₦)</label><input class="fc" type="number" data-f="price" value="'+pl.price+'"></div><div class="fg"><label class="fl">Billing label</label><input class="fc" data-f="period" value="'+esc(pl.period)+'" placeholder="/month"></div></div>' +
+          '<div class="form-grid"><div class="fg"><label class="fl">Price (₦)</label><input class="fc" type="number" data-f="price" value="'+pl.price+'"></div><div class="fg"><label class="fl">Price (US$)</label><input class="fc" type="number" data-f="priceUSD" value="'+(pl.priceUSD != null ? pl.priceUSD : '')+'"></div><div class="fg"><label class="fl">Billing label</label><input class="fc" data-f="period" value="'+esc(pl.period)+'" placeholder="/month"></div></div>' +
           '<div class="fg"><label class="fl">Member limit</label><input class="fc" type="number" data-f="maxMembers" value="'+pl.maxMembers+'"></div>' +
           '<div class="fg"><label class="fl">Features on pricing card (one per line)</label><textarea class="fc" rows="5" data-f="features">'+esc((pl.features||[]).join('\n'))+'</textarea></div>' +
           '<div class="fg"><label class="fl">Pages included</label><div class="page-checks">' + p.pages.map(function(pg){
@@ -3786,7 +3826,7 @@ function saPlans(body){
       var btn = $id('plSave'), plans = {};
       Array.prototype.forEach.call(body.querySelectorAll('.plan-ed'), function(card){
         var g = function(f){ return card.querySelector('[data-f="'+f+'"]'); };
-        plans[card.dataset.plan] = { label:g('label').value, price:g('price').value, period:g('period').value, maxMembers:g('maxMembers').value, featured:g('featured').checked,
+        plans[card.dataset.plan] = { label:g('label').value, price:g('price').value, priceUSD:g('priceUSD').value, period:g('period').value, maxMembers:g('maxMembers').value, featured:g('featured').checked,
           features:g('features').value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean),
           pages:Array.prototype.map.call(card.querySelectorAll('[data-page]:checked'), function(cb){ return cb.dataset.page; }) };
       });
@@ -6815,6 +6855,905 @@ function drawReportDetail(el, key){
   Array.prototype.forEach.call(el.querySelectorAll('[data-rep]'), function(b){ b.addEventListener('click', function(){ generateReport(b.dataset.rep, b.dataset.fmt); }); });
 }
 
+/* Translations: [English, Français, Português, Español, العربية, Kiswahili] */
+var I18N_ROWS = [
+['Features','Fonctionnalités','Funcionalidades','Funciones','المميزات','Vipengele'],
+['How it works','Comment ça marche','Como funciona','Cómo funciona','كيف يعمل','Inavyofanya kazi'],
+['Pricing','Tarifs','Preços','Precios','الأسعار','Bei'],
+['Contact','Contact','Contacto','Contacto','اتصل بنا','Wasiliana nasi'],
+['Sign in','Se connecter','Entrar','Iniciar sesión','تسجيل الدخول','Ingia'],
+['Start free trial','Commencer l’essai gratuit','Começar teste grátis','Empezar prueba gratis','ابدأ تجربتك المجانية','Anza jaribio la bure'],
+['Built for African chapters & associations','Conçu pour les sections et associations africaines','Feito para capítulos e associações africanas','Hecho para capítulos y asociaciones africanas','مصمم للفروع والجمعيات الأفريقية','Imejengwa kwa matawi na vyama vya Afrika'],
+['Run Your Chapter. Empower Your Members. Grow Your Impact.','Dirigez votre section. Donnez du pouvoir à vos membres. Amplifiez votre impact.','Gira o seu capítulo. Capacite os seus membros. Aumente o seu impacto.','Dirige tu capítulo. Empodera a tus miembros. Haz crecer tu impacto.','أدِر فرعك. مكّن أعضاءك. ضاعف أثرك.','Endesha tawi lako. Wawezeshe wanachama wako. Kuza athari yako.'],
+['Get started','Commencer','Começar','Empezar','ابدأ الآن','Anza sasa'],
+['See features','Voir les fonctionnalités','Ver funcionalidades','Ver funciones','شاهد المميزات','Tazama vipengele'],
+['Free trial · No card needed','Essai gratuit · Sans carte bancaire','Teste grátis · Sem cartão','Prueba gratis · Sin tarjeta','تجربة مجانية · دون بطاقة','Jaribio la bure · Bila kadi'],
+['Everything your chapter needs','Tout ce dont votre section a besoin','Tudo o que o seu capítulo precisa','Todo lo que tu capítulo necesita','كل ما يحتاجه فرعك','Kila kitu tawi lako linahitaji'],
+['in one platform','sur une seule plateforme','numa só plataforma','en una sola plataforma','في منصة واحدة','katika jukwaa moja'],
+['One platform for membership, money, meetings and momentum.','Une plateforme pour les membres, l’argent, les réunions et l’élan.','Uma plataforma para membros, dinheiro, reuniões e dinamismo.','Una plataforma para miembros, dinero, reuniones e impulso.','منصة واحدة للعضوية والمال والاجتماعات والزخم.','Jukwaa moja kwa wanachama, fedha, mikutano na kasi.'],
+['Smart Member Management','Gestion intelligente des membres','Gestão inteligente de membros','Gestión inteligente de miembros','إدارة ذكية للأعضاء','Usimamizi mahiri wa wanachama'],
+['Finance Tracking','Suivi financier','Controlo financeiro','Control financiero','تتبع المالية','Ufuatiliaji wa fedha'],
+['Meeting Management','Gestion des réunions','Gestão de reuniões','Gestión de reuniones','إدارة الاجتماعات','Usimamizi wa mikutano'],
+['Expense Requests','Demandes de dépenses','Pedidos de despesas','Solicitudes de gastos','طلبات المصروفات','Maombi ya matumizi'],
+['Directorate Management','Gestion des directions','Gestão de direções','Gestión de direcciones','إدارة الإدارات','Usimamizi wa idara'],
+['Member Profiles','Profils des membres','Perfis de membros','Perfiles de miembros','ملفات الأعضاء','Wasifu wa wanachama'],
+['Campaigns & Broadcasts','Campagnes et diffusions','Campanhas e difusões','Campañas y difusiones','الحملات والبث','Kampeni na matangazo'],
+['Websites & Event Pages','Sites web et pages d’événements','Sites e páginas de eventos','Sitios web y páginas de eventos','المواقع وصفحات الفعاليات','Tovuti na kurasa za matukio'],
+['Roles & Member Care','Rôles et attention aux membres','Funções e cuidado dos membros','Roles y cuidado de miembros','الأدوار ورعاية الأعضاء','Majukumu na huduma kwa wanachama'],
+['Set up your chapter','Configurez votre section','Configure o seu capítulo','Configura tu capítulo','أعدّ فرعك','Weka tawi lako'],
+['Add your members','Ajoutez vos membres','Adicione os seus membros','Añade a tus miembros','أضف أعضاءك','Ongeza wanachama wako'],
+['Run your operations','Pilotez vos opérations','Gira as suas operações','Gestiona tus operaciones','أدِر عملياتك','Endesha shughuli zako'],
+['Track your impact','Suivez votre impact','Acompanhe o seu impacto','Sigue tu impacto','تتبع أثرك','Fuatilia athari yako'],
+['Simple, transparent','Une tarification simple et','Preços simples e','Precios simples y','أسعار بسيطة','Bei rahisi na'],
+['pricing','transparente','transparentes','transparentes','وشفافة','za wazi'],
+['Start free. Upgrade as your chapter grows.','Commencez gratuitement. Évoluez avec votre section.','Comece grátis. Faça upgrade à medida que cresce.','Empieza gratis. Mejora a medida que creces.','ابدأ مجانًا وارتقِ مع نمو فرعك.','Anza bure. Boresha tawi lako linapokua.'],
+['Starter','Démarrage','Inicial','Inicial','الأساسية','Mwanzo'],
+['Free','Gratuit','Grátis','Gratis','مجاني','Bure'],
+['Custom','Sur mesure','Personalizado','A medida','مخصص','Maalum'],
+['Growth','Croissance','Crescimento','Crecimiento','النمو','Ukuaji'],
+['Pro','Pro','Pro','Pro','احترافية','Pro'],
+['Enterprise','Entreprise','Empresarial','Empresa','المؤسسات','Biashara'],
+['/month','/mois','/mês','/mes','/شهر','/mwezi'],
+['/year','/an','/ano','/año','/سنة','/mwaka'],
+['Up to 25 members','Jusqu’à 25 membres','Até 25 membros','Hasta 25 miembros','حتى 25 عضوًا','Hadi wanachama 25'],
+['Up to 100 members','Jusqu’à 100 membres','Até 100 membros','Hasta 100 miembros','حتى 100 عضو','Hadi wanachama 100'],
+['Unlimited members','Membres illimités','Membros ilimitados','Miembros ilimitados','أعضاء غير محدودين','Wanachama bila kikomo'],
+['Dashboard & Members','Tableau de bord et membres','Painel e membros','Panel y miembros','لوحة التحكم والأعضاء','Dashibodi na wanachama'],
+['Finance & Meetings','Finances et réunions','Finanças e reuniões','Finanzas y reuniones','المالية والاجتماعات','Fedha na mikutano'],
+['Everything in Starter','Tout du forfait Démarrage','Tudo do plano Inicial','Todo lo del plan Inicial','كل ما في الأساسية','Kila kitu cha Mwanzo'],
+['Everything in Growth','Tout du forfait Croissance','Tudo do plano Crescimento','Todo lo del plan Crecimiento','كل ما في النمو','Kila kitu cha Ukuaji'],
+['Everything in Pro','Tout du forfait Pro','Tudo do plano Pro','Todo lo del plan Pro','كل ما في الاحترافية','Kila kitu cha Pro'],
+['Requests & Directorates','Demandes et directions','Pedidos e direções','Solicitudes y direcciones','الطلبات والإدارات','Maombi na idara'],
+['Projects & Leave','Projets et congés','Projetos e licenças','Proyectos y permisos','المشاريع والإجازات','Miradi na likizo'],
+['Campaign designer','Concepteur de campagnes','Designer de campanhas','Diseñador de campañas','مصمم الحملات','Mbunifu wa kampeni'],
+['AI copywriter for campaigns','Rédacteur IA pour les campagnes','Redator IA para campanhas','Redactor IA para campañas','كاتب ذكاء اصطناعي للحملات','Mwandishi wa AI wa kampeni'],
+['Admin Panel & Audit Log','Panneau admin et journal d’audit','Painel admin e registo de auditoria','Panel admin y registro de auditoría','لوحة الإدارة وسجل التدقيق','Paneli ya msimamizi na kumbukumbu za ukaguzi'],
+['Custom branding & themes','Marque et thèmes personnalisés','Marca e temas personalizados','Marca y temas personalizados','هوية وسمات مخصصة','Chapa na mandhari maalum'],
+['Super Admin tools','Outils Super Admin','Ferramentas Super Admin','Herramientas Super Admin','أدوات المشرف العام','Zana za Msimamizi Mkuu'],
+['White label capability','Marque blanche','Marca branca','Marca blanca','العلامة البيضاء','Uwezo wa lebo nyeupe'],
+['Start free','Commencer gratuitement','Começar grátis','Empezar gratis','ابدأ مجانًا','Anza bure'],
+['Contact us','Nous contacter','Fale connosco','Contáctanos','اتصل بنا','Wasiliana nasi'],
+['Ready to modernize your chapter?','Prêt à moderniser votre section ?','Pronto para modernizar o seu capítulo?','¿Listo para modernizar tu capítulo?','هل أنت مستعد لتحديث فرعك؟','Uko tayari kuboresha tawi lako?'],
+['Start your free trial','Commencez votre essai gratuit','Comece o seu teste grátis','Empieza tu prueba gratis','ابدأ تجربتك المجانية','Anza jaribio lako la bure'],
+['Product','Produit','Produto','Producto','المنتج','Bidhaa'],
+['Solutions','Solutions','Soluções','Soluciones','الحلول','Suluhisho'],
+['Company','Entreprise','Empresa','Empresa','الشركة','Kampuni'],
+['About','À propos','Sobre','Acerca de','عن المنصة','Kuhusu'],
+['Legal','Mentions légales','Legal','Legal','القانونية','Kisheria'],
+['Privacy & data','Confidentialité et données','Privacidade e dados','Privacidad y datos','الخصوصية والبيانات','Faragha na data'],
+['Terms & Conditions','Conditions générales','Termos e condições','Términos y condiciones','الشروط والأحكام','Sheria na masharti'],
+['Welcome back','Bon retour','Bem-vindo de volta','Bienvenido de nuevo','مرحبًا بعودتك','Karibu tena'],
+['Sign in to manage your chapter','Connectez-vous pour gérer votre section','Entre para gerir o seu capítulo','Inicia sesión para gestionar tu capítulo','سجّل الدخول لإدارة فرعك','Ingia ili kusimamia tawi lako'],
+['Email','E-mail','E-mail','Correo electrónico','البريد الإلكتروني','Barua pepe'],
+['Password','Mot de passe','Palavra-passe','Contraseña','كلمة المرور','Nenosiri'],
+['SHOW','AFFICHER','MOSTRAR','MOSTRAR','إظهار','ONYESHA'],
+['Forgot password?','Mot de passe oublié ?','Esqueceu a palavra-passe?','¿Olvidaste tu contraseña?','نسيت كلمة المرور؟','Umesahau nenosiri?'],
+['Back to home','Retour à l’accueil','Voltar ao início','Volver al inicio','العودة للرئيسية','Rudi mwanzo'],
+['New here?','Nouveau ici ?','Novo por aqui?','¿Nuevo aquí?','جديد هنا؟','Mgeni hapa?'],
+['Create your free workspace','Créez votre espace gratuit','Crie o seu espaço grátis','Crea tu espacio gratis','أنشئ مساحة عملك المجانية','Fungua nafasi yako ya bure'],
+['Set up your organisation in under a minute.','Configurez votre organisation en moins d’une minute.','Configure a sua organização em menos de um minuto.','Configura tu organización en menos de un minuto.','أعدّ مؤسستك في أقل من دقيقة.','Weka shirika lako chini ya dakika moja.'],
+['14 days of Pro free','14 jours de Pro gratuits','14 dias de Pro grátis','14 días de Pro gratis','14 يومًا من الاحترافية مجانًا','Siku 14 za Pro bure'],
+['No credit card','Sans carte bancaire','Sem cartão de crédito','Sin tarjeta de crédito','دون بطاقة ائتمان','Bila kadi ya mkopo'],
+['Your data stays separate','Vos données restent séparées','Os seus dados ficam separados','Tus datos permanecen separados','بياناتك تبقى منفصلة','Data yako hubaki tofauti'],
+['Organisation name','Nom de l’organisation','Nome da organização','Nombre de la organización','اسم المؤسسة','Jina la shirika'],
+['Type of organisation','Type d’organisation','Tipo de organização','Tipo de organización','نوع المؤسسة','Aina ya shirika'],
+['JCI chapter','Section JCI','Capítulo JCI','Capítulo JCI','فرع JCI','Tawi la JCI'],
+['Rotary / Lions club','Club Rotary / Lions','Clube Rotary / Lions','Club Rotary / Lions','نادي روتاري / ليونز','Klabu ya Rotary / Lions'],
+['Church or ministry','Église ou ministère','Igreja ou ministério','Iglesia o ministerio','كنيسة أو خدمة','Kanisa au huduma'],
+['NGO / non-profit','ONG / à but non lucratif','ONG / sem fins lucrativos','ONG / sin fines de lucro','منظمة غير ربحية','NGO / isiyo ya faida'],
+['Alumni association','Association d’anciens','Associação de antigos alunos','Asociación de exalumnos','رابطة الخريجين','Chama cha wahitimu'],
+['Professional association','Association professionnelle','Associação profissional','Asociación profesional','جمعية مهنية','Chama cha kitaaluma'],
+['Cooperative / thrift group','Coopérative / tontine','Cooperativa / grupo de poupança','Cooperativa / grupo de ahorro','تعاونية / مجموعة ادخار','Ushirika / kikundi cha akiba'],
+['School or club','École ou club','Escola ou clube','Escuela o club','مدرسة أو نادٍ','Shule au klabu'],
+['Other','Autre','Outro','Otro','أخرى','Nyingine'],
+['Your full name','Votre nom complet','O seu nome completo','Tu nombre completo','اسمك الكامل','Jina lako kamili'],
+['Phone (optional)','Téléphone (facultatif)','Telefone (opcional)','Teléfono (opcional)','الهاتف (اختياري)','Simu (si lazima)'],
+['Work email','E-mail professionnel','E-mail profissional','Correo de trabajo','بريد العمل','Barua pepe ya kazi'],
+['I have read and agree to the','J’ai lu et j’accepte les','Li e concordo com os','He leído y acepto los','لقد قرأت ووافقت على','Nimesoma na kukubali'],
+['Terms and Conditions','Conditions générales','Termos e Condições','Términos y Condiciones','الشروط والأحكام','Sheria na Masharti'],
+['Create my free account','Créer mon compte gratuit','Criar a minha conta grátis','Crear mi cuenta gratis','أنشئ حسابي المجاني','Fungua akaunti yangu ya bure'],
+['Already have an account?','Vous avez déjà un compte ?','Já tem conta?','¿Ya tienes una cuenta?','لديك حساب بالفعل؟','Tayari una akaunti?'],
+['Set a new password','Définir un nouveau mot de passe','Definir nova palavra-passe','Establecer nueva contraseña','تعيين كلمة مرور جديدة','Weka nenosiri jipya'],
+['New password','Nouveau mot de passe','Nova palavra-passe','Nueva contraseña','كلمة مرور جديدة','Nenosiri jipya'],
+['Confirm new password','Confirmer le nouveau mot de passe','Confirmar nova palavra-passe','Confirmar nueva contraseña','تأكيد كلمة المرور الجديدة','Thibitisha nenosiri jipya'],
+['Set password & continue','Définir et continuer','Definir e continuar','Establecer y continuar','تعيين ومتابعة','Weka nenosiri na uendelee'],
+['Log out instead','Se déconnecter plutôt','Terminar sessão','Cerrar sesión','تسجيل الخروج بدلاً من ذلك','Toka badala yake'],
+['Log out','Déconnexion','Terminar sessão','Cerrar sesión','تسجيل الخروج','Toka'],
+['Your email','Votre e-mail','O seu e-mail','Tu correo','بريدك الإلكتروني','Barua pepe yako'],
+['At least 8 characters','Au moins 8 caractères','Pelo menos 8 caracteres','Al menos 8 caracteres','8 أحرف على الأقل','Angalau herufi 8'],
+['At least 6 characters','Au moins 6 caractères','Pelo menos 6 caracteres','Al menos 6 caracteres','6 أحرف على الأقل','Angalau herufi 6'],
+['Light mode','Mode clair','Modo claro','Modo claro','الوضع الفاتح','Hali ya mwanga'],
+['Dark mode','Mode sombre','Modo escuro','Modo oscuro','الوضع الداكن','Hali ya giza'],
+['Dashboard','Tableau de bord','Painel','Panel','لوحة التحكم','Dashibodi'],
+['Members','Membres','Membros','Miembros','الأعضاء','Wanachama'],
+['Finance','Finances','Finanças','Finanzas','المالية','Fedha'],
+['Meetings','Réunions','Reuniões','Reuniones','الاجتماعات','Mikutano'],
+['Attendance','Présence','Presença','Asistencia','الحضور','Mahudhurio'],
+['Requests','Demandes','Pedidos','Solicitudes','الطلبات','Maombi'],
+['Directorates','Directions','Direções','Direcciones','الإدارات','Idara'],
+['Projects','Projets','Projetos','Proyectos','المشاريع','Miradi'],
+['Leave Requests','Demandes de congé','Pedidos de licença','Solicitudes de permiso','طلبات الإجازة','Maombi ya likizo'],
+['Campaigns','Campagnes','Campanhas','Campañas','الحملات','Kampeni'],
+['Newsletters','Bulletins','Newsletters','Boletines','النشرات','Majarida'],
+['Care','Soutien','Cuidado','Cuidado','الرعاية','Huduma'],
+['Roles & Access','Rôles et accès','Funções e acesso','Roles y acceso','الأدوار والصلاحيات','Majukumu na ufikiaji'],
+['Event Sites','Sites d’événements','Sites de eventos','Sitios de eventos','مواقع الفعاليات','Tovuti za matukio'],
+['Reports','Rapports','Relatórios','Informes','التقارير','Ripoti'],
+['My Payments','Mes paiements','Os meus pagamentos','Mis pagos','مدفوعاتي','Malipo yangu'],
+['My Attendance','Ma présence','A minha presença','Mi asistencia','حضوري','Mahudhurio yangu'],
+['Notifications','Notifications','Notificações','Notificaciones','الإشعارات','Arifa'],
+['Profile','Profil','Perfil','Perfil','الملف الشخصي','Wasifu'],
+['Admin Panel','Panneau admin','Painel admin','Panel de administración','لوحة الإدارة','Paneli ya msimamizi'],
+['Audit Log','Journal d’audit','Registo de auditoria','Registro de auditoría','سجل التدقيق','Kumbukumbu za ukaguzi'],
+['Super Admin','Super Admin','Super Admin','Super Admin','المشرف العام','Msimamizi Mkuu'],
+['Total Members','Total des membres','Total de membros','Total de miembros','إجمالي الأعضاء','Jumla ya wanachama'],
+['Dues Collected','Cotisations perçues','Quotas cobradas','Cuotas cobradas','الاشتراكات المحصّلة','Michango iliyokusanywa'],
+['Attendance Rate','Taux de présence','Taxa de presença','Tasa de asistencia','نسبة الحضور','Kiwango cha mahudhurio'],
+['Pending Requests','Demandes en attente','Pedidos pendentes','Solicitudes pendientes','الطلبات المعلقة','Maombi yanayosubiri'],
+['Across all meetings','Sur toutes les réunions','Em todas as reuniões','En todas las reuniones','عبر جميع الاجتماعات','Katika mikutano yote'],
+['Dues Collected — Last 6 Months','Cotisations perçues — 6 derniers mois','Quotas cobradas — últimos 6 meses','Cuotas cobradas — últimos 6 meses','الاشتراكات المحصّلة — آخر 6 أشهر','Michango — miezi 6 iliyopita'],
+['Directorate Distribution','Répartition par direction','Distribuição por direção','Distribución por dirección','التوزيع حسب الإدارة','Mgawanyo kwa idara'],
+['Membership Growth','Croissance des membres','Crescimento de membros','Crecimiento de miembros','نمو العضوية','Ukuaji wa uanachama'],
+['Upcoming Meetings','Réunions à venir','Próximas reuniões','Próximas reuniones','الاجتماعات القادمة','Mikutano ijayo'],
+['Recent Activity','Activité récente','Atividade recente','Actividad reciente','النشاط الأخير','Shughuli za hivi karibuni'],
+['All Status','Tous les statuts','Todos os estados','Todos los estados','كل الحالات','Hali zote'],
+['Active','Actif','Ativo','Activo','نشط','Hai'],
+['Inactive','Inactif','Inativo','Inactivo','غير نشط','Haifanyi kazi'],
+['Pending','En attente','Pendente','Pendiente','قيد الانتظار','Inasubiri'],
+['Paid','Payé','Pago','Pagado','مدفوع','Imelipwa'],
+['Part paid','Partiellement payé','Parcialmente pago','Pago parcial','مدفوع جزئيًا','Imelipwa kiasi'],
+['Export CSV','Exporter en CSV','Exportar CSV','Exportar CSV','تصدير CSV','Hamisha CSV'],
+['Invite link','Lien d’invitation','Link de convite','Enlace de invitación','رابط الدعوة','Kiungo cha mwaliko'],
+['Import members','Importer des membres','Importar membros','Importar miembros','استيراد الأعضاء','Leta wanachama'],
+['+ Add Member','+ Ajouter un membre','+ Adicionar membro','+ Añadir miembro','+ إضافة عضو','+ Ongeza mwanachama'],
+['Member','Membre','Membro','Miembro','عضو','Mwanachama'],
+['Directorate','Direction','Direção','Dirección','الإدارة','Idara'],
+['Date Joined','Date d’adhésion','Data de adesão','Fecha de ingreso','تاريخ الانضمام','Tarehe ya kujiunga'],
+['Dues','Cotisations','Quotas','Cuotas','الاشتراكات','Michango'],
+['Status','Statut','Estado','Estado','الحالة','Hali'],
+['Actions','Actions','Ações','Acciones','الإجراءات','Vitendo'],
+['View','Voir','Ver','Ver','عرض','Tazama'],
+['Edit','Modifier','Editar','Editar','تعديل','Hariri'],
+['Deactivate','Désactiver','Desativar','Desactivar','تعطيل','Zima'],
+['Delete','Supprimer','Eliminar','Eliminar','حذف','Futa'],
+['Search by name, email or phone…','Rechercher par nom, e-mail ou téléphone…','Pesquisar por nome, e-mail ou telefone…','Buscar por nombre, correo o teléfono…','ابحث بالاسم أو البريد أو الهاتف…','Tafuta kwa jina, barua pepe au simu…'],
+['Message on WhatsApp','Message sur WhatsApp','Mensagem no WhatsApp','Mensaje por WhatsApp','رسالة عبر واتساب','Tuma ujumbe WhatsApp'],
+['Close','Fermer','Fechar','Cerrar','إغلاق','Funga'],
+['Cancel','Annuler','Cancelar','Cancelar','إلغاء','Ghairi'],
+['Save','Enregistrer','Guardar','Guardar','حفظ','Hifadhi'],
+['Save changes','Enregistrer les modifications','Guardar alterações','Guardar cambios','حفظ التغييرات','Hifadhi mabadiliko'],
+['Save settings','Enregistrer les paramètres','Guardar definições','Guardar ajustes','حفظ الإعدادات','Hifadhi mipangilio'],
+['Submit','Envoyer','Enviar','Enviar','إرسال','Wasilisha'],
+['Approve','Approuver','Aprovar','Aprobar','موافقة','Idhinisha'],
+['Reject','Rejeter','Rejeitar','Rechazar','رفض','Kataa'],
+['Refresh','Actualiser','Atualizar','Actualizar','تحديث','Onyesha upya'],
+['Upload','Téléverser','Carregar','Subir','رفع','Pakia'],
+['Remove','Retirer','Remover','Quitar','إزالة','Ondoa'],
+['Generate','Générer','Gerar','Generar','توليد','Tengeneza'],
+['Test','Tester','Testar','Probar','اختبار','Jaribu'],
+['Notes','Notes','Notas','Notas','ملاحظات','Maelezo'],
+['Name','Nom','Nome','Nombre','الاسم','Jina'],
+['Phone','Téléphone','Telefone','Teléfono','الهاتف','Simu'],
+['Address','Adresse','Morada','Dirección','العنوان','Anwani'],
+['Date','Date','Data','Fecha','التاريخ','Tarehe'],
+['Time','Heure','Hora','Hora','الوقت','Saa'],
+['Venue','Lieu','Local','Lugar','المكان','Ukumbi'],
+['Description','Description','Descrição','Descripción','الوصف','Maelezo'],
+['Title','Titre','Título','Título','العنوان','Kichwa'],
+['Type','Type','Tipo','Tipo','النوع','Aina'],
+['Role','Rôle','Função','Rol','الدور','Jukumu'],
+['Reason','Motif','Motivo','Motivo','السبب','Sababu'],
+['Dates','Dates','Datas','Fechas','التواريخ','Tarehe'],
+['Start date','Date de début','Data de início','Fecha de inicio','تاريخ البدء','Tarehe ya kuanza'],
+['End date','Date de fin','Data de fim','Fecha de fin','تاريخ الانتهاء','Tarehe ya kumaliza'],
+['Period','Période','Período','Período','الفترة','Kipindi'],
+['Gender','Genre','Género','Género','الجنس','Jinsia'],
+['Male','Homme','Masculino','Masculino','ذكر','Mume'],
+['Female','Femme','Feminino','Femenino','أنثى','Mke'],
+['Occupation','Profession','Profissão','Ocupación','المهنة','Kazi'],
+['Employer','Employeur','Empregador','Empleador','جهة العمل','Mwajiri'],
+['Relationship','Lien de parenté','Relação','Relación','صلة القرابة','Uhusiano'],
+['Total Collected','Total perçu','Total cobrado','Total cobrado','إجمالي المحصّل','Jumla iliyokusanywa'],
+['Members with Outstanding Dues','Membres avec cotisations dues','Membros com quotas em atraso','Miembros con cuotas pendientes','أعضاء لديهم اشتراكات مستحقة','Wanachama wenye madeni'],
+['This Quarter','Ce trimestre','Este trimestre','Este trimestre','هذا الربع','Robo hii'],
+['Remind members with a balance','Relancer les membres avec un solde','Lembrar membros com saldo','Recordar a miembros con saldo','تذكير الأعضاء الذين عليهم رصيد','Wakumbushe wanachama wenye salio'],
+['+ Record Payment','+ Enregistrer un paiement','+ Registar pagamento','+ Registrar pago','+ تسجيل دفعة','+ Rekodi malipo'],
+['Record payment','Enregistrer un paiement','Registar pagamento','Registrar pago','تسجيل دفعة','Rekodi malipo'],
+['Record & Generate Receipt','Enregistrer et générer le reçu','Registar e gerar recibo','Registrar y generar recibo','تسجيل وإصدار إيصال','Rekodi na utoe risiti'],
+['Receipt','Reçu','Recibo','Recibo','إيصال','Risiti'],
+['Amount','Montant','Valor','Importe','المبلغ','Kiasi'],
+['Method','Moyen','Método','Método','الطريقة','Njia'],
+['Category','Catégorie','Categoria','Categoría','الفئة','Aina'],
+['Cash','Espèces','Dinheiro','Efectivo','نقدًا','Fedha taslimu'],
+['Card','Carte','Cartão','Tarjeta','بطاقة','Kadi'],
+['Bank Transfer','Virement bancaire','Transferência bancária','Transferencia bancaria','تحويل مصرفي','Uhamisho wa benki'],
+['Completed','Terminé','Concluído','Completado','مكتمل','Imekamilika'],
+['+ Schedule Meeting','+ Planifier une réunion','+ Agendar reunião','+ Programar reunión','+ جدولة اجتماع','+ Panga mkutano'],
+['Schedule meeting','Planifier une réunion','Agendar reunião','Programar reunión','جدولة اجتماع','Panga mkutano'],
+['Schedule','Planifier','Agendar','Programar','جدولة','Panga'],
+['Scheduled','Planifié','Agendado','Programado','مجدول','Imepangwa'],
+['General Meeting','Assemblée générale','Reunião geral','Reunión general','اجتماع عام','Mkutano mkuu'],
+['Executive Meeting','Réunion du bureau','Reunião executiva','Reunión ejecutiva','اجتماع تنفيذي','Mkutano wa watendaji'],
+['Take Attendance','Faire l’appel','Registar presenças','Tomar asistencia','تسجيل الحضور','Chukua mahudhurio'],
+['Select meeting','Choisir une réunion','Selecionar reunião','Seleccionar reunión','اختر اجتماعًا','Chagua mkutano'],
+['— Choose a meeting —','— Choisir une réunion —','— Escolha uma reunião —','— Elige una reunión —','— اختر اجتماعًا —','— Chagua mkutano —'],
+['+ New Request','+ Nouvelle demande','+ Novo pedido','+ Nueva solicitud','+ طلب جديد','+ Ombi jipya'],
+['Submitted By','Soumis par','Submetido por','Enviado por','قدّمه','Imewasilishwa na'],
+['Stage','Étape','Fase','Etapa','المرحلة','Hatua'],
+['+ Add Directorate','+ Ajouter une direction','+ Adicionar direção','+ Añadir dirección','+ إضافة إدارة','+ Ongeza idara'],
+['View Members','Voir les membres','Ver membros','Ver miembros','عرض الأعضاء','Tazama wanachama'],
+['+ New Project','+ Nouveau projet','+ Novo projeto','+ Nuevo proyecto','+ مشروع جديد','+ Mradi mpya'],
+['Delete project','Supprimer le projet','Eliminar projeto','Eliminar proyecto','حذف المشروع','Futa mradi'],
+['+ Request Leave','+ Demander un congé','+ Pedir licença','+ Solicitar permiso','+ طلب إجازة','+ Omba likizo'],
+['Request leave','Demander un congé','Pedir licença','Solicitar permiso','طلب إجازة','Omba likizo'],
+['Channels','Canaux','Canais','Canales','القنوات','Njia za mawasiliano'],
+['+ Blank design','+ Design vierge','+ Design em branco','+ Diseño en blanco','+ تصميم فارغ','+ Muundo tupu'],
+['Your campaigns','Vos campagnes','As suas campanhas','Tus campañas','حملاتك','Kampeni zako'],
+['No campaigns yet','Aucune campagne pour l’instant','Ainda sem campanhas','Aún no hay campañas','لا توجد حملات بعد','Hakuna kampeni bado'],
+['Start from a template','Partir d’un modèle','Começar de um modelo','Empezar desde una plantilla','ابدأ من قالب','Anza kwa kiolezo'],
+['All','Tous','Todos','Todos','الكل','Zote'],
+['Events','Événements','Eventos','Eventos','الفعاليات','Matukio'],
+['Meetings & Notices','Réunions et avis','Reuniões e avisos','Reuniones y avisos','الاجتماعات والإشعارات','Mikutano na matangazo'],
+['Celebrations','Célébrations','Celebrações','Celebraciones','الاحتفالات','Sherehe'],
+['Dues & Fundraising','Cotisations et collecte de fonds','Quotas e angariação','Cuotas y recaudación','الاشتراكات وجمع التبرعات','Michango na uchangishaji'],
+['Awards','Récompenses','Prémios','Premios','الجوائز','Tuzo'],
+['Quotes','Citations','Citações','Citas','اقتباسات','Nukuu'],
+['Training & Webinars','Formations et webinaires','Formação e webinars','Formación y webinars','التدريب والندوات','Mafunzo na mtandao'],
+['Community','Communauté','Comunidade','Comunidad','المجتمع','Jamii'],
+['Social Media','Réseaux sociaux','Redes sociais','Redes sociales','وسائل التواصل','Mitandao ya kijamii'],
+['+ New newsletter','+ Nouveau bulletin','+ Nova newsletter','+ Nuevo boletín','+ نشرة جديدة','+ Jarida jipya'],
+['No newsletters yet','Aucun bulletin pour l’instant','Ainda sem newsletters','Aún no hay boletines','لا توجد نشرات بعد','Hakuna majarida bado'],
+['Care check-ins','Suivis de bien-être','Check-ins de cuidado','Seguimientos de cuidado','متابعات الرعاية','Ukaguzi wa huduma'],
+['Members reached','Membres joints','Membros alcançados','Miembros alcanzados','الأعضاء الذين تم الوصول إليهم','Wanachama waliofikiwa'],
+['Average mood','Humeur moyenne','Humor médio','Estado de ánimo medio','متوسط المزاج','Wastani wa hisia'],
+['Check-ins','Suivis','Check-ins','Seguimientos','المتابعات','Ukaguzi'],
+['Need a follow-up','À recontacter','Precisam de acompanhamento','Necesitan seguimiento','بحاجة إلى متابعة','Wanahitaji ufuatiliaji'],
+['How members feel','Comment se sentent les membres','Como se sentem os membros','Cómo se sienten los miembros','كيف يشعر الأعضاء','Wanachama wanavyohisi'],
+['Recent answers','Réponses récentes','Respostas recentes','Respuestas recientes','الإجابات الأخيرة','Majibu ya hivi karibuni'],
+['New role','Nouveau rôle','Nova função','Nuevo rol','دور جديد','Jukumu jipya'],
+['Your roles','Vos rôles','As suas funções','Tus roles','أدوارك','Majukumu yako'],
+['Built-in roles','Rôles intégrés','Funções integradas','Roles integrados','الأدوار المدمجة','Majukumu ya kawaida'],
+['Built in','Intégré','Integrado','Integrado','مدمج','Ya kawaida'],
+['President','Président','Presidente','Presidente','الرئيس','Rais'],
+['Treasurer','Trésorier','Tesoureiro','Tesorero','أمين الصندوق','Mweka hazina'],
+['Executive','Bureau','Executivo','Ejecutivo','تنفيذي','Mtendaji'],
+['Director','Directeur','Diretor','Director','مدير','Mkurugenzi'],
+['Event sites','Sites d’événements','Sites de eventos','Sitios de eventos','مواقع الفعاليات','Tovuti za matukio'],
+['New event site','Nouveau site d’événement','Novo site de evento','Nuevo sitio de evento','موقع فعالية جديد','Tovuti mpya ya tukio'],
+['Leads','Contacts','Contactos','Contactos','العملاء المحتملون','Wateja watarajiwa'],
+['Overview','Vue d’ensemble','Visão geral','Resumen','نظرة عامة','Muhtasari'],
+['Active members','Membres actifs','Membros ativos','Miembros activos','الأعضاء النشطون','Wanachama hai'],
+['Dues compliance','Conformité des cotisations','Cumprimento das quotas','Cumplimiento de cuotas','الالتزام بالاشتراكات','Utiifu wa michango'],
+['Total collected','Total perçu','Total cobrado','Total cobrado','إجمالي المحصّل','Jumla iliyokusanywa'],
+['Average attendance','Présence moyenne','Presença média','Asistencia media','متوسط الحضور','Wastani wa mahudhurio'],
+['Summary in plain words','Résumé en langage simple','Resumo em palavras simples','Resumen en palabras sencillas','ملخص بكلمات بسيطة','Muhtasari kwa maneno rahisi'],
+['Members by status','Membres par statut','Membros por estado','Miembros por estado','الأعضاء حسب الحالة','Wanachama kwa hali'],
+['Members by directorate','Membres par direction','Membros por direção','Miembros por dirección','الأعضاء حسب الإدارة','Wanachama kwa idara'],
+['New members by month','Nouveaux membres par mois','Novos membros por mês','Nuevos miembros por mes','الأعضاء الجدد شهريًا','Wanachama wapya kwa mwezi'],
+['Money collected by month','Argent perçu par mois','Dinheiro cobrado por mês','Dinero cobrado por mes','الأموال المحصّلة شهريًا','Fedha iliyokusanywa kwa mwezi'],
+['Income by category','Revenus par catégorie','Receitas por categoria','Ingresos por categoría','الدخل حسب الفئة','Mapato kwa aina'],
+['Payment methods','Moyens de paiement','Métodos de pagamento','Métodos de pago','طرق الدفع','Njia za malipo'],
+['Detailed reports','Rapports détaillés','Relatórios detalhados','Informes detallados','تقارير مفصلة','Ripoti za kina'],
+['Membership Report','Rapport des membres','Relatório de membros','Informe de miembros','تقرير العضوية','Ripoti ya uanachama'],
+['Finance Report','Rapport financier','Relatório financeiro','Informe financiero','التقرير المالي','Ripoti ya fedha'],
+['Attendance Report','Rapport de présence','Relatório de presença','Informe de asistencia','تقرير الحضور','Ripoti ya mahudhurio'],
+['Dues Compliance','Conformité des cotisations','Cumprimento das quotas','Cumplimiento de cuotas','الالتزام بالاشتراكات','Utiifu wa michango'],
+['Growth Analytics','Analyse de croissance','Análise de crescimento','Análisis de crecimiento','تحليلات النمو','Uchambuzi wa ukuaji'],
+['Collections','Encaissements','Cobranças','Cobros','التحصيلات','Makusanyo'],
+['View my dues invoice','Voir ma facture de cotisation','Ver a minha fatura de quotas','Ver mi factura de cuotas','عرض فاتورة اشتراكي','Tazama ankara ya michango yangu'],
+['Mark all read','Tout marquer comme lu','Marcar tudo como lido','Marcar todo como leído','تحديد الكل كمقروء','Weka zote zimesomwa'],
+['Personal Information','Informations personnelles','Informações pessoais','Información personal','المعلومات الشخصية','Taarifa binafsi'],
+['Full name','Nom complet','Nome completo','Nombre completo','الاسم الكامل','Jina kamili'],
+['Date of birth','Date de naissance','Data de nascimento','Fecha de nacimiento','تاريخ الميلاد','Tarehe ya kuzaliwa'],
+['Emergency Contact','Contact d’urgence','Contacto de emergência','Contacto de emergencia','جهة اتصال الطوارئ','Mawasiliano ya dharura'],
+['Career Timeline','Parcours professionnel','Percurso profissional','Trayectoria profesional','المسار المهني','Historia ya kazi'],
+['Change Password','Changer le mot de passe','Alterar palavra-passe','Cambiar contraseña','تغيير كلمة المرور','Badilisha nenosiri'],
+['Current password','Mot de passe actuel','Palavra-passe atual','Contraseña actual','كلمة المرور الحالية','Nenosiri la sasa'],
+['Update password','Mettre à jour le mot de passe','Atualizar palavra-passe','Actualizar contraseña','تحديث كلمة المرور','Sasisha nenosiri'],
+['Organization Settings','Paramètres de l’organisation','Definições da organização','Ajustes de la organización','إعدادات المؤسسة','Mipangilio ya shirika'],
+['Organization name','Nom de l’organisation','Nome da organização','Nombre de la organización','اسم المؤسسة','Jina la shirika'],
+['Standard dues amount','Montant standard des cotisations','Valor padrão das quotas','Importe estándar de cuotas','المبلغ المعتاد للاشتراكات','Kiasi cha kawaida cha michango'],
+['Theme','Thème','Tema','Tema','السمة','Mandhari'],
+['Organisation logo','Logo de l’organisation','Logótipo da organização','Logo de la organización','شعار المؤسسة','Nembo ya shirika'],
+['Dark mode default','Mode sombre par défaut','Modo escuro por defeito','Modo oscuro por defecto','الوضع الداكن افتراضيًا','Hali ya giza kwa chaguo-msingi'],
+['Contact & receipt details','Coordonnées et détails du reçu','Contacto e detalhes do recibo','Contacto y detalles del recibo','بيانات الاتصال والإيصال','Mawasiliano na maelezo ya risiti'],
+['Contact email','E-mail de contact','E-mail de contacto','Correo de contacto','بريد الاتصال','Barua pepe ya mawasiliano'],
+['Website','Site web','Website','Sitio web','الموقع الإلكتروني','Tovuti'],
+['Bank name','Nom de la banque','Nome do banco','Nombre del banco','اسم البنك','Jina la benki'],
+['Account name','Nom du compte','Nome da conta','Nombre de la cuenta','اسم الحساب','Jina la akaunti'],
+['Account number','Numéro de compte','Número da conta','Número de cuenta','رقم الحساب','Nambari ya akaunti'],
+['Messaging channels','Canaux de messagerie','Canais de mensagens','Canales de mensajería','قنوات المراسلة','Njia za ujumbe'],
+['Receipt & invoice design','Design des reçus et factures','Design de recibos e faturas','Diseño de recibos y facturas','تصميم الإيصالات والفواتير','Muundo wa risiti na ankara'],
+['Receipt preview','Aperçu du reçu','Pré-visualização do recibo','Vista previa del recibo','معاينة الإيصال','Hakiki ya risiti'],
+['Invoice preview','Aperçu de la facture','Pré-visualização da fatura','Vista previa de la factura','معاينة الفاتورة','Hakiki ya ankara'],
+['Demo Data','Données de démonstration','Dados de demonstração','Datos de demostración','بيانات تجريبية','Data ya maonyesho'],
+['Seed demo data','Charger des données de démo','Carregar dados de demonstração','Cargar datos de demostración','إضافة بيانات تجريبية','Weka data ya maonyesho'],
+['Clear demo data','Effacer les données de démo','Limpar dados de demonstração','Borrar datos de demostración','مسح البيانات التجريبية','Futa data ya maonyesho'],
+['Users & Roles','Utilisateurs et rôles','Utilizadores e funções','Usuarios y roles','المستخدمون والأدوار','Watumiaji na majukumu'],
+['Recycle Bin','Corbeille','Reciclagem','Papelera','سلة المحذوفات','Pipa la taka'],
+['When','Quand','Quando','Cuándo','متى','Lini'],
+['Action','Action','Ação','Acción','الإجراء','Kitendo'],
+['Detail','Détail','Detalhe','Detalle','التفاصيل','Maelezo'],
+['By','Par','Por','Por','بواسطة','Na'],
+['Organizations','Organisations','Organizações','Organizaciones','المؤسسات','Mashirika'],
+['AI Models','Modèles IA','Modelos de IA','Modelos de IA','نماذج الذكاء الاصطناعي','Miundo ya AI'],
+['Branding & Platform','Image de marque et plateforme','Marca e plataforma','Marca y plataforma','الهوية والمنصة','Chapa na jukwaa'],
+['Pricing Plans','Forfaits tarifaires','Planos de preços','Planes de precios','خطط الأسعار','Mipango ya bei'],
+['Roles & Permissions','Rôles et permissions','Funções e permissões','Roles y permisos','الأدوار والصلاحيات','Majukumu na ruhusa'],
+['Users','Utilisateurs','Utilizadores','Usuarios','المستخدمون','Watumiaji'],
+['Organization','Organisation','Organização','Organización','المؤسسة','Shirika'],
+['Plan','Forfait','Plano','Plan','الخطة','Mpango'],
+['Joined','Inscrit le','Aderiu','Se unió','انضم','Alijiunga'],
+['Change plan','Changer de forfait','Alterar plano','Cambiar plan','تغيير الخطة','Badilisha mpango'],
+['Branding','Image de marque','Marca','Marca','الهوية','Chapa'],
+['Product name','Nom du produit','Nome do produto','Nombre del producto','اسم المنتج','Jina la bidhaa'],
+['Primary colour','Couleur principale','Cor principal','Color principal','اللون الرئيسي','Rangi kuu'],
+['Support email','E-mail du support','E-mail de suporte','Correo de soporte','بريد الدعم','Barua pepe ya msaada'],
+['Display name','Nom affiché','Nome de exibição','Nombre visible','الاسم المعروض','Jina la kuonyesha'],
+['Member limit','Limite de membres','Limite de membros','Límite de miembros','حد الأعضاء','Kikomo cha wanachama'],
+['Pages included','Pages incluses','Páginas incluídas','Páginas incluidas','الصفحات المشمولة','Kurasa zilizojumuishwa'],
+['Save pricing plans','Enregistrer les forfaits','Guardar planos de preços','Guardar planes de precios','حفظ خطط الأسعار','Hifadhi mipango ya bei'],
+['Save permissions','Enregistrer les permissions','Guardar permissões','Guardar permisos','حفظ الصلاحيات','Hifadhi ruhusa'],
+['Reset to defaults','Rétablir les valeurs par défaut','Repor predefinições','Restablecer valores','إعادة الضبط الافتراضي','Rudisha chaguo-msingi'],
+['Add member','Ajouter un membre','Adicionar membro','Añadir miembro','إضافة عضو','Ongeza mwanachama'],
+['Membership type','Type d’adhésion','Tipo de membro','Tipo de membresía','نوع العضوية','Aina ya uanachama'],
+['Join date','Date d’adhésion','Data de adesão','Fecha de ingreso','تاريخ الانضمام','Tarehe ya kujiunga'],
+['Temporary Password','Mot de passe temporaire','Palavra-passe temporária','Contraseña temporal','كلمة مرور مؤقتة','Nenosiri la muda'],
+['Leave blank to auto-generate','Laisser vide pour générer automatiquement','Deixe em branco para gerar automaticamente','Dejar en blanco para generar automáticamente','اتركه فارغًا للتوليد التلقائي','Acha wazi ili itengenezwe kiotomatiki'],
+['Donation','Don','Doação','Donación','تبرع','Mchango'],
+['Training','Formation','Formação','Formación','تدريب','Mafunzo'],
+['Social','Social','Social','Social','اجتماعي','Kijamii'],
+['Committee Meeting','Réunion de comité','Reunião de comité','Reunión de comité','اجتماع لجنة','Mkutano wa kamati'],
+['Directorate Meeting','Réunion de direction','Reunião de direção','Reunión de dirección','اجتماع إدارة','Mkutano wa idara'],
+['Not now','Pas maintenant','Agora não','Ahora no','ليس الآن','Si sasa'],
+['Stop these messages','Arrêter ces messages','Parar estas mensagens','Dejar de recibir estos mensajes','إيقاف هذه الرسائل','Acha ujumbe huu'],
+['How are you feeling today?','Comment vous sentez-vous aujourd’hui ?','Como se sente hoje?','¿Cómo te sientes hoy?','كيف تشعر اليوم؟','Unajisikiaje leo?'],
+['Struggling','En difficulté','A lutar','Con dificultades','أعاني','Napambana'],
+['Low','Bas','Em baixo','Bajo','منخفض','Chini'],
+['Okay','Correct','Normal','Regular','لا بأس','Sawa'],
+['Good','Bien','Bem','Bien','جيد','Vizuri'],
+['Great','Super','Ótimo','Genial','ممتاز','Nzuri sana'],
+['Not set up','Non configuré','Não configurado','No configurado','غير مُعدّ','Haijawekwa'],
+['Email service','Service e-mail','Serviço de e-mail','Servicio de correo','خدمة البريد','Huduma ya barua pepe'],
+['From name','Nom de l’expéditeur','Nome do remetente','Nombre del remitente','اسم المرسل','Jina la mtumaji'],
+['Reply-to email','E-mail de réponse','E-mail de resposta','Correo de respuesta','بريد الرد','Barua pepe ya majibu'],
+['Send test email','Envoyer un e-mail test','Enviar e-mail de teste','Enviar correo de prueba','إرسال بريد تجريبي','Tuma barua pepe ya majaribio'],
+['Send test SMS','Envoyer un SMS test','Enviar SMS de teste','Enviar SMS de prueba','إرسال رسالة تجريبية','Tuma SMS ya majaribio'],
+['Send test WhatsApp','Envoyer un WhatsApp test','Enviar WhatsApp de teste','Enviar WhatsApp de prueba','إرسال واتساب تجريبي','Tuma WhatsApp ya majaribio'],
+['Provider','Fournisseur','Fornecedor','Proveedor','المزوّد','Mtoa huduma'],
+['Default country code','Indicatif pays par défaut','Indicativo de país predefinido','Prefijo de país predeterminado','رمز الدولة الافتراضي','Msimbo wa nchi chaguo-msingi'],
+['Choose a provider to continue.','Choisissez un fournisseur pour continuer.','Escolha um fornecedor para continuar.','Elige un proveedor para continuar.','اختر مزوّدًا للمتابعة.','Chagua mtoa huduma ili uendelee.'],
+['Upgrade your plan','Améliorez votre forfait','Melhore o seu plano','Mejora tu plan','ارتقِ بخطتك','Boresha mpango wako'],
+['Chat on WhatsApp','Discuter sur WhatsApp','Conversar no WhatsApp','Chatear por WhatsApp','تحدث عبر واتساب','Ongea kwenye WhatsApp'],
+['Email support','Écrire au support','Contactar o suporte','Escribir a soporte','راسل الدعم','Barua pepe kwa msaada'],
+['Welcome back, admin.','Bon retour, admin.','Bem-vindo de volta, admin.','Bienvenido de nuevo, admin.','مرحبًا بعودتك.','Karibu tena.'],
+['Settings saved.','Paramètres enregistrés.','Definições guardadas.','Ajustes guardados.','تم حفظ الإعدادات.','Mipangilio imehifadhiwa.'],
+['Saved.','Enregistré.','Guardado.','Guardado.','تم الحفظ.','Imehifadhiwa.'],
+['Profile updated.','Profil mis à jour.','Perfil atualizado.','Perfil actualizado.','تم تحديث الملف الشخصي.','Wasifu umesasishwa.'],
+['Payment recorded successfully.','Paiement enregistré avec succès.','Pagamento registado com sucesso.','Pago registrado con éxito.','تم تسجيل الدفعة بنجاح.','Malipo yamerekodiwa.'],
+['Password updated.','Mot de passe mis à jour.','Palavra-passe atualizada.','Contraseña actualizada.','تم تحديث كلمة المرور.','Nenosiri limesasishwa.'],
+['Request submitted successfully.','Demande envoyée avec succès.','Pedido enviado com sucesso.','Solicitud enviada con éxito.','تم إرسال الطلب بنجاح.','Ombi limewasilishwa.'],
+['Pricing plans saved.','Forfaits enregistrés.','Planos de preços guardados.','Planes de precios guardados.','تم حفظ خطط الأسعار.','Mipango ya bei imehifadhiwa.'],
+['Link copied.','Lien copié.','Link copiado.','Enlace copiado.','تم نسخ الرابط.','Kiungo kimenakiliwa.'],
+['Plan updated.','Forfait mis à jour.','Plano atualizado.','Plan actualizado.','تم تحديث الخطة.','Mpango umesasishwa.'],
+['Messaging settings saved.','Paramètres de messagerie enregistrés.','Definições de mensagens guardadas.','Ajustes de mensajería guardados.','تم حفظ إعدادات المراسلة.','Mipangilio ya ujumbe imehifadhiwa.'],
+['Reminder and invoice sent.','Relance et facture envoyées.','Lembrete e fatura enviados.','Recordatorio y factura enviados.','تم إرسال التذكير والفاتورة.','Ukumbusho na ankara vimetumwa.'],
+['Language','Langue','Idioma','Idioma','اللغة','Lugha'],
+['Currency','Devise','Moeda','Moneda','العملة','Sarafu'],
+['Plan & billing','Forfait et facturation','Plano e faturação','Plan y facturación','الخطة والفوترة','Mpango na malipo'],
+['Billing & payments','Facturation et paiements','Faturação e pagamentos','Facturación y pagos','الفوترة والمدفوعات','Malipo na bili'],
+['Current plan','Forfait actuel','Plano atual','Plan actual','الخطة الحالية','Mpango wa sasa'],
+['Active until','Actif jusqu’au','Ativo até','Activo hasta','نشط حتى','Hai hadi'],
+['Free trial','Essai gratuit','Teste grátis','Prueba gratis','تجربة مجانية','Jaribio la bure'],
+['Upgrade','Améliorer','Melhorar','Mejorar','ترقية','Boresha'],
+['Renew or upgrade','Renouveler ou améliorer','Renovar ou melhorar','Renovar o mejorar','تجديد أو ترقية','Sasisha au boresha'],
+['Choose a plan','Choisissez un forfait','Escolha um plano','Elige un plan','اختر خطة','Chagua mpango'],
+['Monthly','Mensuel','Mensal','Mensual','شهري','Kila mwezi'],
+['Yearly','Annuel','Anual','Anual','سنوي','Kila mwaka'],
+['Yearly (best value)','Annuel (meilleur prix)','Anual (melhor valor)','Anual (mejor precio)','سنوي (أفضل قيمة)','Kila mwaka (thamani bora)'],
+['Selected','Sélectionné','Selecionado','Seleccionado','محدد','Imechaguliwa'],
+['Select','Choisir','Selecionar','Seleccionar','اختيار','Chagua'],
+['Choose how to pay','Choisissez comment payer','Escolha como pagar','Elige cómo pagar','اختر طريقة الدفع','Chagua njia ya kulipa'],
+['Pay online','Payer en ligne','Pagar online','Pagar en línea','الدفع عبر الإنترنت','Lipa mtandaoni'],
+['Bank transfer','Virement bancaire','Transferência bancária','Transferencia bancaria','تحويل مصرفي','Uhamisho wa benki'],
+['Total due','Total à payer','Total a pagar','Total a pagar','الإجمالي المستحق','Jumla inayodaiwa'],
+['You will be taken to a secure payment page.','Vous serez redirigé vers une page de paiement sécurisée.','Será levado para uma página de pagamento segura.','Serás llevado a una página de pago segura.','سيتم نقلك إلى صفحة دفع آمنة.','Utapelekwa kwenye ukurasa salama wa malipo.'],
+['Pay now','Payer maintenant','Pagar agora','Pagar ahora','ادفع الآن','Lipa sasa'],
+['No online payment methods are set up yet. Use bank transfer or contact support.','Aucun paiement en ligne n’est configuré. Utilisez un virement ou contactez le support.','Ainda não há pagamento online. Use transferência ou contacte o suporte.','Aún no hay pagos en línea. Usa transferencia o contacta con soporte.','لم يتم إعداد الدفع الإلكتروني بعد. استخدم التحويل المصرفي أو تواصل مع الدعم.','Hakuna malipo ya mtandaoni bado. Tumia uhamisho wa benki au wasiliana na msaada.'],
+['Transfer to one of these accounts','Virez sur l’un de ces comptes','Transfira para uma destas contas','Transfiere a una de estas cuentas','حوّل إلى أحد هذه الحسابات','Hamisha kwenye mojawapo ya akaunti hizi'],
+['Bank','Banque','Banco','Banco','البنك','Benki'],
+['Branch','Agence','Agência','Sucursal','الفرع','Tawi'],
+['SWIFT / BIC','SWIFT / BIC','SWIFT / BIC','SWIFT / BIC','SWIFT / BIC','SWIFT / BIC'],
+['IBAN','IBAN','IBAN','IBAN','IBAN','IBAN'],
+['Amount to transfer','Montant à virer','Valor a transferir','Importe a transferir','المبلغ المراد تحويله','Kiasi cha kuhamisha'],
+['Transfer reference','Référence du virement','Referência da transferência','Referencia de la transferencia','مرجع التحويل','Kumbukumbu ya uhamisho'],
+['Date of transfer','Date du virement','Data da transferência','Fecha de la transferencia','تاريخ التحويل','Tarehe ya uhamisho'],
+['Note (optional)','Note (facultatif)','Nota (opcional)','Nota (opcional)','ملاحظة (اختياري)','Maelezo (si lazima)'],
+['Proof of payment (optional)','Preuve de paiement (facultatif)','Comprovativo de pagamento (opcional)','Comprobante de pago (opcional)','إثبات الدفع (اختياري)','Uthibitisho wa malipo (si lazima)'],
+['I have made this transfer','J’ai effectué ce virement','Fiz esta transferência','He hecho esta transferencia','لقد أجريت هذا التحويل','Nimefanya uhamisho huu'],
+['Awaiting review','En attente de vérification','A aguardar revisão','Pendiente de revisión','بانتظار المراجعة','Inasubiri ukaguzi'],
+['Rejected','Rejeté','Rejeitado','Rechazado','مرفوض','Imekataliwa'],
+['Payment history','Historique des paiements','Histórico de pagamentos','Historial de pagos','سجل المدفوعات','Historia ya malipo'],
+['No payments yet','Aucun paiement pour l’instant','Ainda sem pagamentos','Aún no hay pagos','لا توجد مدفوعات بعد','Hakuna malipo bado'],
+['Reference','Référence','Referência','Referencia','المرجع','Kumbukumbu'],
+['Verifying your payment…','Vérification de votre paiement…','A verificar o seu pagamento…','Verificando tu pago…','جارٍ التحقق من دفعتك…','Inathibitisha malipo yako…'],
+['Payment confirmed. Your plan is now active.','Paiement confirmé. Votre forfait est actif.','Pagamento confirmado. O seu plano está ativo.','Pago confirmado. Tu plan está activo.','تم تأكيد الدفع. خطتك نشطة الآن.','Malipo yamethibitishwa. Mpango wako umewashwa.'],
+['Transfer sent for review. We will activate your plan once it arrives.','Virement envoyé pour vérification. Nous activerons votre forfait à sa réception.','Transferência enviada para revisão. Ativaremos o plano quando chegar.','Transferencia enviada a revisión. Activaremos tu plan cuando llegue.','تم إرسال التحويل للمراجعة. سنفعّل خطتك عند وصوله.','Uhamisho umetumwa kukaguliwa. Tutawasha mpango wako ukifika.'],
+['Language & currency','Langue et devise','Idioma e moeda','Idioma y moneda','اللغة والعملة','Lugha na sarafu'],
+['Use platform default','Utiliser la valeur par défaut','Usar predefinição da plataforma','Usar valor de la plataforma','استخدام الافتراضي','Tumia chaguo-msingi'],
+['Payment gateways','Passerelles de paiement','Gateways de pagamento','Pasarelas de pago','بوابات الدفع','Lango za malipo'],
+['Bank accounts','Comptes bancaires','Contas bancárias','Cuentas bancarias','الحسابات المصرفية','Akaunti za benki'],
+['Add bank account','Ajouter un compte bancaire','Adicionar conta bancária','Añadir cuenta bancaria','إضافة حساب مصرفي','Ongeza akaunti ya benki'],
+['Enabled','Activé','Ativado','Activado','مفعّل','Imewashwa'],
+['Secret key','Clé secrète','Chave secreta','Clave secreta','المفتاح السري','Ufunguo wa siri'],
+['Transfers to review','Virements à vérifier','Transferências a rever','Transferencias por revisar','تحويلات للمراجعة','Uhamisho wa kukagua'],
+['Save billing settings','Enregistrer la facturation','Guardar definições de faturação','Guardar ajustes de facturación','حفظ إعدادات الفوترة','Hifadhi mipangilio ya malipo'],
+['Price (US$)','Prix (US$)','Preço (US$)','Precio (US$)','السعر (دولار)','Bei (US$)'],
+['Present across all meetings','Présence sur toutes les réunions','Presentes em todas as reuniões','Presentes en todas las reuniones','حاضرون في جميع الاجتماعات','Waliohudhuria mikutano yote'],
+['A little note for you','Un petit mot pour vous','Uma pequena nota para si','Una pequeña nota para ti','رسالة صغيرة لك','Ujumbe mdogo kwako'],
+['Your answer is seen only by chapter leadership.','Votre réponse n’est vue que par la direction de la section.','A sua resposta só é vista pela liderança do capítulo.','Tu respuesta solo la ve la dirección del capítulo.','إجابتك يراها قادة الفرع فقط.','Jibu lako huonekana na uongozi wa tawi pekee.'],
+['Hope you are doing well today, admin. You matter to this chapter, and we are glad you are here.','Nous espérons que vous allez bien aujourd’hui. Vous comptez pour cette section et nous sommes heureux de vous avoir.','Esperamos que esteja bem hoje. Você é importante para este capítulo e estamos felizes por tê-lo aqui.','Esperamos que estés bien hoy. Eres importante para este capítulo y nos alegra tenerte aquí.','نأمل أن تكون بخير اليوم. أنت مهم لهذا الفرع ويسعدنا وجودك.','Tunatumai uko vizuri leo. Wewe ni muhimu kwa tawi hili na tunafurahi kuwa nawe.'],
+['Chapter overview','Vue d’ensemble de la section','Visão geral do capítulo','Resumen del capítulo','نظرة عامة على الفرع','Muhtasari wa tawi'],
+['Recent Activity','Activité récente','Atividade recente','Actividad reciente','النشاط الأخير','Shughuli za hivi karibuni'],
+['Platform default','Valeur par défaut de la plateforme','Predefinição da plataforma','Valor de la plataforma','افتراضي المنصة','Chaguo-msingi la jukwaa'],
+['AI model for campaign copy','Modèle IA pour les textes de campagne','Modelo de IA para textos de campanha','Modelo de IA para textos de campaña','نموذج الذكاء الاصطناعي لنصوص الحملات','Mfumo wa AI kwa maandishi ya kampeni'],
+['Automated Birthday & Anniversary Messages','Messages automatiques d’anniversaire','Mensagens automáticas de aniversário','Mensajes automáticos de cumpleaños y aniversario','رسائل أعياد الميلاد والذكرى التلقائية','Ujumbe wa kiotomatiki wa siku ya kuzaliwa'],
+['Run check now (test)','Lancer la vérification (test)','Executar verificação (teste)','Ejecutar comprobación (prueba)','تشغيل الفحص الآن (تجريبي)','Endesha ukaguzi sasa (jaribio)'],
+['Receipt signatory name','Nom du signataire du reçu','Nome do signatário do recibo','Nombre del firmante del recibo','اسم الموقّع على الإيصال','Jina la mtia saini wa risiti'],
+['Signatory title','Titre du signataire','Cargo do signatário','Cargo del firmante','صفة الموقّع','Cheo cha mtia saini'],
+['Set up email, SMS & WhatsApp','Configurer e-mail, SMS et WhatsApp','Configurar e-mail, SMS e WhatsApp','Configurar correo, SMS y WhatsApp','إعداد البريد والرسائل وواتساب','Weka barua pepe, SMS na WhatsApp'],
+['Choose how your organisation sends email, SMS and WhatsApp messages.','Choisissez comment votre organisation envoie e-mails, SMS et WhatsApp.','Escolha como a sua organização envia e-mails, SMS e WhatsApp.','Elige cómo tu organización envía correos, SMS y WhatsApp.','اختر كيف ترسل مؤسستك البريد والرسائل القصيرة وواتساب.','Chagua jinsi shirika lako linavyotuma barua pepe, SMS na WhatsApp.'],
+['Saved with the button above.','Enregistré avec le bouton ci-dessus.','Guardado com o botão acima.','Se guarda con el botón de arriba.','يُحفظ بالزر أعلاه.','Hufanywa kwa kitufe cha juu.'],
+['Shown on dues receipts together with your logo and brand colour.','Affiché sur les reçus avec votre logo et votre couleur.','Mostrado nos recibos com o seu logótipo e cor.','Se muestra en los recibos con tu logo y color.','يظهر على الإيصالات مع شعارك ولونك.','Huonekana kwenye risiti pamoja na nembo na rangi yako.'],
+['Member ID','ID du membre','ID do membro','ID del miembro','رقم العضو','Kitambulisho cha mwanachama'],
+['Received from','Reçu de','Recebido de','Recibido de','مستلم من','Imepokelewa kutoka'],
+['Paid to date','Payé à ce jour','Pago até à data','Pagado hasta la fecha','المدفوع حتى الآن','Imelipwa hadi sasa'],
+['OUTSTANDING BALANCE','SOLDE RESTANT','SALDO EM DÍVIDA','SALDO PENDIENTE','الرصيد المستحق','SALIO LINALODAIWA'],
+['Authorised signatory','Signataire autorisé','Signatário autorizado','Firmante autorizado','المخوّل بالتوقيع','Mtia saini aliyeidhinishwa'],
+['Payment date','Date de paiement','Data de pagamento','Fecha de pago','تاريخ الدفع','Tarehe ya malipo'],
+['Recorded by','Enregistré par','Registado por','Registrado por','سجّله','Imerekodiwa na'],
+['Receipt No.','N° de reçu','N.º do recibo','N.º de recibo','رقم الإيصال','Nambari ya risiti'],
+['Dues payment recorded','Paiement de cotisation enregistré','Pagamento de quota registado','Pago de cuota registrado','تم تسجيل دفعة اشتراك','Malipo ya mchango yamerekodiwa'],
+['Members notified automatically','Membres notifiés automatiquement','Membros notificados automaticamente','Miembros notificados automáticamente','يتم إشعار الأعضاء تلقائيًا','Wanachama wanaarifiwa kiotomatiki'],
+['Create your free workspace','Créez votre espace gratuit','Crie o seu espaço grátis','Crea tu espacio gratis','أنشئ مساحة عملك المجانية','Fungua nafasi yako ya bure'],
+['Invite link','Lien d’invitation','Link de convite','Enlace de invitación','رابط الدعوة','Kiungo cha mwaliko'],
+['Welcome to OrgPilot','Bienvenue sur OrgPilot','Bem-vindo ao OrgPilot','Bienvenido a OrgPilot','مرحبًا بك في OrgPilot','Karibu OrgPilot'],
+['No data yet','Aucune donnée pour l’instant','Ainda sem dados','Aún no hay datos','لا توجد بيانات بعد','Hakuna data bado'],
+['Not enough data yet','Pas encore assez de données','Ainda sem dados suficientes','Aún no hay suficientes datos','لا توجد بيانات كافية بعد','Data haitoshi bado'],
+['Plan active until','Forfait actif jusqu’au','Plano ativo até','Plan activo hasta','الخطة نشطة حتى','Mpango unatumika hadi']
+];
+
+/* ============================================================================
+ * LANGUAGES: English, Français, Português, Español, العربية (RTL), Kiswahili
+ * Translates the visible interface by matching the English text the app already renders,
+ * so every screen, including ones built later, picks it up without code changes.
+ * ==========================================================================*/
+var LANGS = [['en','English'],['fr','Français'],['pt','Português'],['es','Español'],['ar','العربية'],['sw','Kiswahili']];
+var I18N_COL = { fr:1, pt:2, es:3, ar:4, sw:5 };
+var I18N_MAP = { fr:{}, pt:{}, es:{}, ar:{}, sw:{} }, I18N_LOW = { fr:{}, pt:{}, es:{}, ar:{}, sw:{} };
+(function(){
+  I18N_ROWS.forEach(function(r){ Object.keys(I18N_COL).forEach(function(l){ var v = r[I18N_COL[l]]; if(!v) return; I18N_MAP[l][r[0]] = v; I18N_LOW[l][r[0].toLowerCase()] = v; }); });
+})();
+var I18N_MONTHS = { fr:['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'], pt:['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'], es:['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'], ar:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], sw:['Jan','Feb','Machi','Apr','Mei','Juni','Julai','Ago','Sep','Okt','Nov','Des'] };
+var I18N_EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Sentences with numbers or names inside. $1, $2 are the captured parts.
+var I18N_PATTERNS = [
+  [/^(\d+) active$/, { fr:'$1 actifs', pt:'$1 ativos', es:'$1 activos', ar:'$1 نشط', sw:'$1 hai' }],
+  [/^(\d+) outstanding$/, { fr:'$1 en attente de paiement', pt:'$1 em atraso', es:'$1 pendientes', ar:'$1 مستحق', sw:'$1 yanadaiwa' }],
+  [/^Pay with (.+)$/, { fr:'Payer avec $1', pt:'Pagar com $1', es:'Pagar con $1', ar:'الدفع عبر $1', sw:'Lipa kwa $1' }],
+  [/^Try (.+) free$/, { fr:'Essayer $1 gratuitement', pt:'Experimentar $1 grátis', es:'Probar $1 gratis', ar:'جرّب $1 مجانًا', sw:'Jaribu $1 bure' }],
+  [/^Welcome back, (.+)\.$/, { fr:'Bon retour, $1.', pt:'Bem-vindo de volta, $1.', es:'Bienvenido de nuevo, $1.', ar:'مرحبًا بعودتك، $1.', sw:'Karibu tena, $1.' }],
+  [/^Good (morning|afternoon|evening), (.+)$/, { fr:'Bonjour, $2', pt:'Olá, $2', es:'Hola, $2', ar:'مرحبًا، $2', sw:'Habari, $2' }],
+  [/^(\d+) days? left$/, { fr:'$1 jours restants', pt:'$1 dias restantes', es:'$1 días restantes', ar:'متبقٍ $1 يومًا', sw:'Siku $1 zimebaki' }],
+  [/^(\d+) upcoming meetings?$/, { fr:'$1 réunions à venir', pt:'$1 próximas reuniões', es:'$1 próximas reuniones', ar:'$1 اجتماعات قادمة', sw:'Mikutano $1 ijayo' }],
+  [/^(\d+) paid · (\d+) owing$/, { fr:'$1 payés · $2 en retard', pt:'$1 pagos · $2 em dívida', es:'$1 pagados · $2 pendientes', ar:'$1 مدفوع · $2 مستحق', sw:'$1 wamelipa · $2 wanadaiwa' }],
+  [/^Save (\d+) months?$/, { fr:'Économisez $1 mois', pt:'Poupe $1 meses', es:'Ahorra $1 meses', ar:'وفّر $1 أشهر', sw:'Okoa miezi $1' }]
+];
+var LANG = 'en';
+var I18N_ORIG = new WeakMap(), I18N_OUT = new WeakMap(), I18N_BUSY = false, I18N_OBS = null, I18N_QUEUE = [], I18N_TIMER = 0;
+var I18N_SKIP = { SCRIPT:1, STYLE:1, TEXTAREA:1, CODE:1, PRE:1, NOSCRIPT:1, SVG:0 };
+
+function tr(s){ return i18nText(String(s == null ? '' : s)); }
+function i18nText(raw){
+  if(raw && raw.indexOf('(₦)') !== -1 && typeof orgCurrency === 'function' && orgCurrency() !== 'NGN') raw = raw.replace('(₦)', '(' + curSymbol().trim() + ')');
+  if(LANG === 'en' || !raw) return raw;
+  var lead = raw.match(/^\s*/)[0], trail = raw.match(/\s*$/)[0], core = raw.slice(lead.length, raw.length - trail.length);
+  if(!core) return raw;
+  var out = i18nCore(core);
+  return out === core ? raw : lead + out + trail;
+}
+function i18nCore(core){
+  var M = I18N_MAP[LANG], L = I18N_LOW[LANG];
+  if(M[core]) return M[core];
+  var low = core.toLowerCase();
+  if(L[low]) return core === core.toUpperCase() && core !== core.toLowerCase() ? L[low].toUpperCase() : L[low];
+  // trailing punctuation or leading symbols: "Email:", "+ Add", "✓ Everything…"
+  var m = core.match(/^([^A-Za-z0-9؀-ۿ]*)(.*?)([:：…\.\s*]*)$/);
+  if(m && m[2] && (m[1] || m[3])){ var inner = M[m[2]] || L[m[2].toLowerCase()]; if(inner) return m[1] + inner + m[3]; }
+  var pm = core.match(/^(.+?)( \([^)]+\))$/);
+  if(pm){ var inn = M[pm[1]] || L[pm[1].toLowerCase()]; if(inn) return inn + pm[2]; }
+  for(var i = 0; i < I18N_PATTERNS.length; i++){
+    var mm = core.match(I18N_PATTERNS[i][0]);
+    if(mm){ var tpl = I18N_PATTERNS[i][1][LANG]; if(tpl){ return tpl.replace(/\$(\d)/g, function(_, n){ var part = mm[Number(n)] || ''; return i18nCore(part) || part; }); } }
+  }
+  var dm = core.match(/^(\d{1,2} )?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( '?\d{2,4})?$/);
+  if(dm){ var mi = I18N_EN_MONTHS.indexOf(dm[2]); return (dm[1] || '') + I18N_MONTHS[LANG][mi] + (dm[3] || ''); }
+  return core;
+}
+function i18nSkipEl(el){
+  for(var e = el; e && e !== document.body; e = e.parentElement){
+    if(I18N_SKIP[e.tagName] || e.isContentEditable || (e.hasAttribute && (e.hasAttribute('data-no-i18n') || e.classList.contains('notranslate')))) return true;
+  }
+  return false;
+}
+function i18nNode(n){
+  var cur = n.nodeValue, orig = (I18N_OUT.has(n) && I18N_OUT.get(n) === cur) ? I18N_ORIG.get(n) : cur;
+  var t = i18nText(orig);
+  I18N_ORIG.set(n, orig); I18N_OUT.set(n, t);
+  if(t !== cur) n.nodeValue = t;
+}
+var I18N_ATTRS = ['placeholder','title','aria-label'];
+function i18nEl(el){
+  if(!el.getAttribute) return;
+  I18N_ATTRS.forEach(function(a){
+    var v = el.getAttribute(a); if(v == null) return;
+    var key = '_i18n_' + a, store = el[key];
+    var orig = (store && store.out === v) ? store.orig : v, t = i18nText(orig);
+    el[key] = { orig:orig, out:t };
+    if(t !== v) el.setAttribute(a, t);
+  });
+}
+function i18nApply(root){
+  if(!root) return;
+  I18N_BUSY = true;
+  try{
+    if(root.nodeType === 3){ if(root.parentElement && !i18nSkipEl(root.parentElement)) i18nNode(root); return; }
+    if(root.nodeType !== 1 && root.nodeType !== 11 && root.nodeType !== 9) return;
+    if(root.nodeType === 1 && i18nSkipEl(root)) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null), n;
+    if(root.nodeType === 1) i18nEl(root);
+    while((n = w.nextNode())){
+      if(n.nodeType === 3){ if(n.parentElement && !I18N_SKIP[n.parentElement.tagName] && n.nodeValue.trim() && !i18nSkipEl(n.parentElement)) i18nNode(n); }
+      else if(I18N_SKIP[n.tagName]){ /* skipped by parent check on text nodes */ }
+      else i18nEl(n);
+    }
+  } finally { I18N_BUSY = false; }
+}
+function i18nFlush(){
+  I18N_TIMER = 0; var q = I18N_QUEUE; I18N_QUEUE = [];
+  if(I18N_OBS) I18N_OBS.disconnect();
+  q.forEach(function(n){ if(n.isConnected !== false) i18nApply(n); });
+  i18nWatch();
+}
+function i18nWatch(){
+  if(!window.MutationObserver) return;
+  if(!I18N_OBS) I18N_OBS = new MutationObserver(function(recs){
+    var any = false;
+    recs.forEach(function(r){
+      if(r.type === 'childList'){ r.addedNodes.forEach(function(n){ I18N_QUEUE.push(n); any = true; }); }
+      else if(r.type === 'characterData'){ I18N_QUEUE.push(r.target); any = true; }
+      else if(r.type === 'attributes'){ I18N_QUEUE.push(r.target); any = true; }
+    });
+    if(any && !I18N_TIMER) I18N_TIMER = setTimeout(i18nFlush, 30);
+  });
+  I18N_OBS.observe(document.body, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:I18N_ATTRS });
+}
+function setLang(code, persist){
+  if(!LANGS.some(function(l){ return l[0] === code; })) code = 'en';
+  LANG = code;
+  if(persist !== false){ try{ localStorage.setItem('op_lang', code); }catch(e){} }
+  var rtl = code === 'ar';
+  document.documentElement.lang = code; document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  document.body.classList.toggle('rtl', rtl);
+  if(I18N_OBS) I18N_OBS.disconnect();
+  i18nApply(document.body);
+  i18nWatch();
+  Array.prototype.forEach.call(document.querySelectorAll('.lang-sel'), function(s){ s.value = code; });
+}
+function langSelectHtml(extra){
+  return '<select class="lang-sel '+(extra||'')+'" aria-label="Language" data-no-i18n="1" title="Language">'+LANGS.map(function(l){ return '<option value="'+l[0]+'"'+(l[0]===LANG?' selected':'')+'>'+l[1]+'</option>'; }).join('')+'</select>';
+}
+function i18nMountSelectors(){
+  var targets = [
+    ['.lp-nav-inner > div:last-child', 'afterbegin', 'lang-lp'],
+    ['#topbar > div:last-child', 'afterbegin', 'lang-top'],
+    ['#v-login .auth-card', 'afterbegin', 'lang-auth'],
+    ['#v-signup .auth-card', 'afterbegin', 'lang-auth']
+  ];
+  targets.forEach(function(t){
+    var host = document.querySelector(t[0]); if(!host || host.querySelector('.lang-sel')) return;
+    host.insertAdjacentHTML(t[1], langSelectHtml(t[2]));
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.lang-sel'), function(s){
+    if(s._wired) return; s._wired = true;
+    s.addEventListener('change', function(){ setLang(s.value, true); });
+  });
+}
+function i18nInitial(){
+  var saved = ''; try{ saved = localStorage.getItem('op_lang') || ''; }catch(e){}
+  if(saved) return saved;
+  var nav = String(navigator.language || 'en').slice(0, 2).toLowerCase();
+  return LANGS.some(function(l){ return l[0] === nav; }) ? nav : 'en';
+}
+// When a person has not picked a language themselves, use the one their organisation chose.
+function i18nOrgDefault(){
+  var saved = ''; try{ saved = localStorage.getItem('op_lang') || ''; }catch(e){}
+  var pref = STATE && STATE.org && STATE.org.language;
+  if(!saved && pref && pref !== LANG) setLang(pref, false);
+}
+(function(){
+  var _rs = (typeof renderSidebar === 'function') ? renderSidebar : null;
+  if(_rs){ renderSidebar = function(){ var r = _rs.apply(this, arguments); try{ i18nOrgDefault(); i18nMountSelectors(); }catch(e){} return r; }; }
+})();
+function i18nBoot(){
+  i18nMountSelectors();
+  var l = i18nInitial();
+  if(l !== 'en') setLang(l, false); else { document.documentElement.lang = 'en'; i18nWatch(); }
+  i18nWatch();
+}
+
+/* ============================================================================
+ * BILLING: currencies (₦ / $), upgrade checkout (gateways + bank transfer),
+ * Admin "Plan & billing" card, Super Admin "Billing & payments" tab
+ * ==========================================================================*/
+var CUR_SYMBOLS = { NGN:'₦', USD:'$', GHS:'GH₵', KES:'KSh', ZAR:'R', XOF:'CFA ', XAF:'FCFA ', EUR:'€', GBP:'£', TZS:'TSh ', UGX:'USh ', RWF:'RF ', MAD:'MAD ', EGP:'E£', AED:'AED ', CAD:'CA$', BRL:'R$', MZN:'MT ', AOA:'Kz ' };
+var PLAN_USD_FALLBACK = { Starter:0, Growth:10, Pro:25, Enterprise:-1 };
+function orgCurrency(){ return (STATE && STATE.org && STATE.org.currency) || 'NGN'; }
+function curSymbol(code){ return CUR_SYMBOLS[code || orgCurrency()] || ((code || orgCurrency()) + ' '); }
+function billMoney(cur, amt){ return (CUR_SYMBOLS[cur] || (cur + ' ')) + Number(amt).toLocaleString('en-US', { maximumFractionDigits:2 }); }
+function billDate(s){ return s ? fmtDate(s) : '—'; }
+function billErr(e){ toast((e && e.message) || 'Something went wrong.', 'error'); }
+
+/* ---------------- upgrade checkout ---------------- */
+var BILL = { opts:null, plan:'', period:'monthly', cur:'NGN', view:'plans', bankId:'' };
+function showUpgradeModal(page){ openBilling(page); }
+function openBilling(){
+  BILL.view = 'plans'; BILL.plan = '';
+  openModal('lg', 'Upgrade your plan', '<div id="bilBody">'+loadingRows(3)+'</div>', '');
+  api('billing.options', {}).then(function(o){
+    BILL.opts = o;
+    var pref = orgCurrency(); BILL.cur = o.currencies[pref] ? pref : o.defaultCurrency;
+    billRender();
+  }).catch(function(e){ var b = $id('bilBody'); if(b) b.innerHTML = '<p style="color:var(--danger);">'+esc((e && e.message) || 'Could not load plans.')+'</p>'; });
+}
+function billPlanPrice(p){
+  var cur = BILL.cur, m = cur === 'USD' ? p.priceUSD : p.price;
+  if(!(m > 0)) return null;
+  return BILL.period === 'yearly' ? (cur === 'USD' ? p.yearly.USD : p.yearly.NGN) : m;
+}
+function billRender(){
+  var host = $id('bilBody'); if(!host || !BILL.opts) return;
+  var o = BILL.opts, status = '';
+  if(o.trialDaysLeft) status = '<span class="tag tag-amber">Free trial · '+o.trialDaysLeft+' day'+(o.trialDaysLeft===1?'':'s')+' left</span>';
+  else if(o.planExpiresAt) status = '<span class="tag tag-green">Plan active until '+esc(billDate(o.planExpiresAt))+'</span>';
+  var h = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;"><span style="font-size:13px;color:var(--muted);">Current plan</span><span class="tier-badge tier-'+esc(String(o.currentPlan).toLowerCase())+'">'+esc(o.currentPlan)+'</span>'+status+'</div>';
+  if(o.pending && o.pending.length) h += '<div class="card" style="background:#FFFBEB;border-color:#FDE68A;margin-bottom:14px;font-size:13px;">'+o.pending.map(function(p){ return '⏳ Transfer of <strong>'+esc(billMoney(p.currency,p.amount))+'</strong> for '+esc(p.plan)+' is awaiting review.'; }).join('<br>')+'</div>';
+  if(BILL.view === 'plans') h += billPlansHtml(); else h += billPayHtml();
+  host.innerHTML = h;
+  billWire(host);
+}
+function billSeg(items, cur, attr){ return '<div class="bil-seg">'+items.map(function(i){ return '<button type="button" class="'+(i[0]===cur?'on':'')+'" data-'+attr+'="'+esc(i[0])+'">'+esc(i[1])+'</button>'; }).join('')+'</div>'; }
+function billPlansHtml(){
+  var o = BILL.opts, cur = BILL.cur;
+  var h = '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+    billSeg([['monthly','Monthly'],['yearly','Yearly (best value)']], BILL.period, 'per') +
+    billSeg(Object.keys(o.currencies).map(function(c){ return [c, o.currencies[c].symbol+' '+c]; }), cur, 'cur') + '</div>';
+  h += '<div class="bil-grid">' + o.plans.filter(function(p){ return p.name !== 'Starter'; }).map(function(p){
+    var amt = billPlanPrice(p), isCur = p.name === o.currentPlan;
+    var price = amt == null ? '<div class="bil-price">Custom</div>' : '<div class="bil-price">'+esc(billMoney(cur, amt))+' <span>'+(BILL.period==='yearly'?'/year':'/month')+'</span></div>';
+    return '<div class="bil-card'+(isCur?' cur':'')+'"><div class="pname">'+esc(p.label)+'</div>'+price +
+      '<ul>'+(p.features||[]).slice(0,5).map(function(f){ return '<li>✓ '+esc(f)+'</li>'; }).join('')+'</ul>' +
+      (amt == null ? '<button type="button" class="btn btn-outline" data-bilcontact="1" style="width:100%;">Contact us</button>'
+        : '<button type="button" class="btn '+(isCur?'btn-outline':'btn-primary')+'" data-bilplan="'+esc(p.name)+'" style="width:100%;">'+(isCur?'Renew or upgrade':'Select')+'</button>') + '</div>';
+  }).join('') + '</div>';
+  h += '<p style="font-size:12px;color:var(--muted);margin:14px 0 0;">Paid plans last 30 days (monthly) or 365 days (yearly) from the day your payment is confirmed. Paying again before the end adds more time.</p>';
+  return h;
+}
+function billSelected(){
+  var p = BILL.opts.plans.filter(function(x){ return x.name === BILL.plan; })[0];
+  return p ? { plan:p, amount:billPlanPrice(p) } : null;
+}
+function billPayHtml(){
+  var o = BILL.opts, sel = billSelected(); if(!sel || sel.amount == null) return '';
+  var cur = BILL.cur, gws = o.gateways.filter(function(g){ return g.currencies.indexOf(cur) !== -1; });
+  var banks = o.banks.filter(function(b){ return b.currency === cur; });
+  var h = '<button type="button" class="btn btn-ghost btn-sm" data-bilback="1" style="margin-bottom:8px;">← Choose a plan</button>' +
+    '<div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;"><div><strong>'+esc(sel.plan.label)+'</strong> · '+(BILL.period==='yearly'?'Yearly':'Monthly')+'</div><div style="text-align:right;"><div style="font-size:12px;color:var(--muted);">Total due</div><div style="font-size:22px;font-weight:800;">'+esc(billMoney(cur, sel.amount))+'</div></div></div>';
+  h += billSeg(Object.keys(o.currencies).map(function(c){ return [c, o.currencies[c].symbol+' '+c]; }), cur, 'cur') + '<div style="height:12px;"></div>';
+  h += '<h4 style="margin:0 0 8px;">Choose how to pay</h4>';
+  if(gws.length) h += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px;">'+gws.map(function(g){ return '<button type="button" class="btn btn-primary" data-bilgw="'+esc(g.id)+'">'+esc('Pay with '+g.label)+'</button>'; }).join('')+'</div><div style="font-size:12px;color:var(--muted);margin-bottom:14px;">You will be taken to a secure payment page.</div>';
+  if(banks.length){
+    h += '<div class="card"><h4 style="margin:0 0 8px;">Bank transfer</h4><div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Transfer to one of these accounts</div>' +
+      banks.map(function(b, i){ return '<label class="bil-bank"><input type="radio" name="bilBank" value="'+esc(b.id)+'" '+((BILL.bankId ? BILL.bankId===b.id : i===0)?'checked':'')+'><span><strong>'+esc(b.bankName)+'</strong>' +
+        '<br><span class="bil-k">Account name</span> '+esc(b.accountName)+' · <span class="bil-k">Account number</span> <strong>'+esc(b.accountNumber)+'</strong>' +
+        (b.swift?'<br><span class="bil-k">SWIFT / BIC</span> '+esc(b.swift):'')+(b.iban?' · <span class="bil-k">IBAN</span> '+esc(b.iban):'')+(b.branch?'<br><span class="bil-k">Branch</span> '+esc(b.branch):'')+(b.note?'<br><em style="color:var(--muted);">'+esc(b.note)+'</em>':'')+'</span></label>'; }).join('') +
+      (o.instructions ? '<div style="font-size:13px;margin:8px 0;padding:8px 10px;background:var(--bg);border-radius:8px;">'+esc(o.instructions)+'</div>' : '') +
+      '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div class="fg"><label class="fl">Amount to transfer</label><input class="fc" value="'+esc(billMoney(cur, sel.amount))+'" readonly></div><div class="fg"><label class="fl">Date of transfer</label><input class="fc" type="date" id="bilDate" value="'+new Date().toISOString().slice(0,10)+'"></div></div>' +
+      '<div class="fg"><label class="fl">Transfer reference</label><input class="fc" id="bilRef" placeholder="Reference, narration or sender name"></div>' +
+      '<div class="fg"><label class="fl">Note (optional)</label><input class="fc" id="bilNote"></div>' +
+      '<div class="fg"><label class="fl">Proof of payment (optional)</label><input type="file" id="bilProof" accept="image/*,application/pdf"></div>' +
+      '<button type="button" class="btn btn-secondary" id="bilSendTransfer">I have made this transfer</button></div>';
+  }
+  if(!gws.length && !banks.length) h += '<div class="card" style="font-size:13px;">No online payment methods are set up yet. Use bank transfer or contact support.</div>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"><a class="btn btn-outline btn-sm" target="_blank" href="https://wa.me/'+String(brandVal('supportWhatsApp')||BRAND_WHATSAPP_FALLBACK).replace(/\D/g,'')+'">💬 Chat on WhatsApp</a><a class="btn btn-outline btn-sm" href="mailto:'+esc(brandVal('supportEmail'))+'">✉️ Email support</a></div>';
+  return h;
+}
+function billWire(host){
+  Array.prototype.forEach.call(host.querySelectorAll('[data-per]'), function(b){ b.addEventListener('click', function(){ BILL.period = b.dataset.per; billRender(); }); });
+  Array.prototype.forEach.call(host.querySelectorAll('[data-cur]'), function(b){ b.addEventListener('click', function(){ BILL.cur = b.dataset.cur; billRender(); }); });
+  Array.prototype.forEach.call(host.querySelectorAll('[data-bilplan]'), function(b){ b.addEventListener('click', function(){ BILL.plan = b.dataset.bilplan; BILL.view = 'pay'; billRender(); }); });
+  Array.prototype.forEach.call(host.querySelectorAll('[data-bilcontact]'), function(b){ b.addEventListener('click', function(){ window.open('https://wa.me/'+String(brandVal('supportWhatsApp')||BRAND_WHATSAPP_FALLBACK).replace(/\D/g,''), '_blank'); }); });
+  var back = host.querySelector('[data-bilback]'); if(back) back.addEventListener('click', function(){ BILL.view = 'plans'; billRender(); });
+  Array.prototype.forEach.call(host.querySelectorAll('[data-bilgw]'), function(b){ b.addEventListener('click', function(){
+    busy(b, true, 'Opening…');
+    api('billing.checkout', { plan:BILL.plan, period:BILL.period, currency:BILL.cur, gateway:b.dataset.bilgw }).then(function(r){
+      try{ sessionStorage.setItem('op_payref', r.reference); }catch(e){}
+      try{ window.top.location.href = r.url; }catch(e){ window.location.href = r.url; }
+    }).catch(function(e){ busy(b,false); billErr(e); });
+  }); });
+  Array.prototype.forEach.call(host.querySelectorAll('[name="bilBank"]'), function(r){ r.addEventListener('change', function(){ BILL.bankId = r.value; }); });
+  var sendT = $id('bilSendTransfer');
+  if(sendT) sendT.addEventListener('click', function(){
+    var bankEl = host.querySelector('[name="bilBank"]:checked');
+    var payload = { plan:BILL.plan, period:BILL.period, currency:BILL.cur, bankId:bankEl ? bankEl.value : '', reference:$id('bilRef').value, note:$id('bilNote').value, paidOn:$id('bilDate').value };
+    if(!payload.reference.trim()){ toast('Enter your transfer reference or the name on the transfer.', 'info'); return; }
+    var f = $id('bilProof').files[0];
+    function go(){ busy(sendT, true); api('billing.submitTransfer', payload).then(function(){ closeModal(); toast('Transfer sent for review. We will activate your plan once it arrives.', 'success'); if($id('admBilling')) billAdminInit(); }).catch(function(e){ busy(sendT,false); billErr(e); }); }
+    if(!f){ go(); return; }
+    if(f.size > 4*1024*1024){ toast('The proof file is too large (max 4 MB).', 'error'); return; }
+    var rd = new FileReader(); rd.onload = function(){ payload.proofBase64 = String(rd.result); payload.proofName = f.name; payload.proofType = f.type; go(); }; rd.readAsDataURL(f);
+  });
+}
+
+/* ---------------- return from a payment gateway ---------------- */
+function billReturnRef(){
+  var ref = '';
+  try{ ref = window.__PAY_REF__ || new URLSearchParams(window.location.search).get('payref') || ''; }catch(e){}
+  if(ref){ try{ sessionStorage.setItem('op_payref', ref); }catch(e){} }
+  try{ return ref || sessionStorage.getItem('op_payref') || ''; }catch(e){ return ref; }
+}
+function billCheckReturn(){
+  var ref = billReturnRef(); if(!ref || !STATE.user || BILL.checking) return;
+  BILL.checking = true;
+  try{ if(history.replaceState){ var u = new URL(window.location.href); u.searchParams.delete('payref'); u.searchParams.delete('reference'); u.searchParams.delete('trxref'); u.searchParams.delete('tx_ref'); u.searchParams.delete('status'); u.searchParams.delete('transaction_id'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } }catch(e){}
+  openModal('sm', 'Plan & billing', '<div id="bilVerify" style="text-align:center;padding:18px 6px;"><div class="spin" style="margin:0 auto 12px;"></div><p>Verifying your payment…</p></div>', '');
+  function attempt(n){
+    api('billing.verify', { reference:ref }).then(function(r){
+      var h = $id('bilVerify'); if(!h) return;
+      if(r.verified || r.status === 'Paid'){
+        try{ sessionStorage.removeItem('op_payref'); }catch(e){}
+        h.innerHTML = '<div style="font-size:42px;">✅</div><h3 style="margin:8px 0;">Payment confirmed. Your plan is now active.</h3><p style="color:var(--muted);font-size:13px;">'+esc(r.plan)+' · '+esc(billMoney(r.currency, r.amount))+'</p><button class="btn btn-primary" data-action="close-modal">Close</button>';
+        billRefreshOrg();
+      } else if(n < 3){ setTimeout(function(){ attempt(n+1); }, 2500); }
+      else { h.innerHTML = '<p>'+esc(r.message || 'Payment not confirmed yet.')+'</p><button class="btn btn-primary" id="bilAgain">Verify again</button> <button class="btn btn-outline" data-action="close-modal">Close</button>'; var a = $id('bilAgain'); if(a) a.addEventListener('click', function(){ h.innerHTML = '<div class="spin" style="margin:0 auto 12px;"></div><p>Verifying your payment…</p>'; attempt(0); }); }
+    }).catch(function(e){ var h = $id('bilVerify'); if(h) h.innerHTML = '<p style="color:var(--danger);">'+esc((e && e.message) || 'Could not verify.')+'</p><button class="btn btn-outline" data-action="close-modal">Close</button>'; try{ sessionStorage.removeItem('op_payref'); }catch(x){} });
+  }
+  attempt(0);
+}
+function billRefreshOrg(){
+  return api('org.get', {}).then(function(o){ STATE.org = Object.assign(STATE.org || {}, o); STATE.plan = o.plan; try{ renderSidebar(); renderTrialBanner(); }catch(e){} if($id('admBilling')) billAdminInit(); }).catch(function(){});
+}
+(function(){
+  var _rs = renderSidebar;
+  renderSidebar = function(){ var r = _rs.apply(this, arguments); try{ billCheckReturn(); }catch(e){} return r; };
+})();
+
+/* ---------------- Admin: plan & billing card ---------------- */
+function billAdminHtml(){
+  return '<div class="card" id="admBilling"><h4 style="margin-top:0;">Plan & billing</h4><div id="admBillBody">'+loadingRows(2)+'</div></div>';
+}
+function billAdminInit(){
+  var host = $id('admBillBody'); if(!host) return;
+  Promise.all([api('billing.options', {}), api('billing.history', {})]).then(function(rs){
+    var o = rs[0], hist = rs[1], org = STATE.org || {};
+    var st = o.trialDaysLeft ? '<span class="tag tag-amber">Free trial · '+o.trialDaysLeft+' day'+(o.trialDaysLeft===1?'':'s')+' left</span>' : (o.planExpiresAt ? '<span class="tag tag-green">Plan active until '+esc(billDate(o.planExpiresAt))+'</span>' : '');
+    var h = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;"><span style="font-size:13px;color:var(--muted);">Current plan</span><span class="tier-badge tier-'+esc(String(o.currentPlan).toLowerCase())+'">'+esc(o.currentPlan)+'</span>'+st+'<button class="btn btn-primary btn-sm" id="admUpgrade" style="margin-left:auto;">Renew or upgrade</button></div>';
+    h += '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;"><div class="fg"><label class="fl">Language</label><select class="fc" id="admLang" data-no-i18n="1"><option value="">Use platform default</option>'+LANGS.map(function(l){ return '<option value="'+l[0]+'"'+(org.language===l[0]?' selected':'')+'>'+l[1]+'</option>'; }).join('')+'</select></div>' +
+      '<div class="fg"><label class="fl">Currency</label><select class="fc" id="admCur" data-no-i18n="1">'+Object.keys(CUR_SYMBOLS).map(function(c){ return '<option value="'+c+'"'+(orgCurrency()===c?' selected':'')+'>'+CUR_SYMBOLS[c].trim()+' '+c+'</option>'; }).join('')+'</select></div></div>' +
+      '<button class="btn btn-outline btn-sm" id="admLangSave">Save language & currency</button>';
+    h += '<h4 style="margin:18px 0 8px;">Payment history</h4>';
+    if(!hist.length) h += '<div style="font-size:13px;color:var(--muted);">No payments yet</div>';
+    else h += '<div class="table-wrap"><table class="dtbl"><thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Reference</th></tr></thead><tbody>'+hist.slice(0,15).map(function(p){
+      var tg = p.status==='Paid'?'tag-green':(p.status==='Rejected'?'tag-red':'tag-amber');
+      return '<tr><td>'+esc(billDate(p.createdAt))+'</td><td>'+esc(p.plan)+' · '+esc(p.period)+'</td><td>'+esc(billMoney(p.currency,p.amount))+'</td><td>'+esc(p.method==='bank'?'Bank transfer':(p.gateway||'Online'))+'</td><td><span class="tag '+tg+'">'+esc(p.status)+'</span></td><td style="font-size:12px;">'+esc(p.reference)+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+    host.innerHTML = h;
+    $id('admUpgrade').addEventListener('click', openBilling);
+    $id('admLangSave').addEventListener('click', function(){
+      var b = $id('admLangSave'); busy(b, true);
+      api('admin.updateSettings', { patch:{ language:$id('admLang').value, currency:$id('admCur').value } }).then(function(n){
+        STATE.org = Object.assign(STATE.org || {}, n); toast('Settings saved.', 'success');
+        try{ var sv = localStorage.getItem('op_lang'); if(!sv && n.language) setLang(n.language, false); }catch(e){}
+        renderAdmin();
+      }).catch(billErr).finally(function(){ busy(b, false); });
+    });
+  }).catch(function(e){ host.innerHTML = '<p style="color:var(--danger);font-size:13px;">'+esc((e && e.message) || 'Could not load billing.')+'</p>'; });
+}
+
+/* ---------------- Super Admin: billing & payments ---------------- */
+function saBilling(body){
+  body.innerHTML = loadingRows(4);
+  Promise.all([api('superadmin.getBilling', {}), api('superadmin.billingPayments', {})]).then(function(rs){ saBillingRender(body, rs[0], rs[1]); }).catch(saErr);
+}
+function saBillingRender(body, cfg, pays){
+  var banks = cfg.banks.slice();
+  function bankRow(b, i){
+    return '<div class="card sab-bank" data-i="'+i+'" style="margin-bottom:10px;"><div class="form-grid" style="display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;">' +
+      '<div class="fg"><label class="fl">Currency</label><select class="fc" data-f="currency">'+Object.keys(cfg.currencies).map(function(c){ return '<option value="'+c+'"'+(b.currency===c?' selected':'')+'>'+c+'</option>'; }).join('')+'</select></div>' +
+      '<div class="fg"><label class="fl">Bank</label><input class="fc" data-f="bankName" value="'+esc(b.bankName||'')+'"></div><div class="fg"><label class="fl">Account name</label><input class="fc" data-f="accountName" value="'+esc(b.accountName||'')+'"></div>' +
+      '<div class="fg"><label class="fl">Account number</label><input class="fc" data-f="accountNumber" value="'+esc(b.accountNumber||'')+'"></div><div class="fg"><label class="fl">SWIFT / BIC</label><input class="fc" data-f="swift" value="'+esc(b.swift||'')+'"></div><div class="fg"><label class="fl">IBAN</label><input class="fc" data-f="iban" value="'+esc(b.iban||'')+'"></div>' +
+      '<div class="fg"><label class="fl">Branch</label><input class="fc" data-f="branch" value="'+esc(b.branch||'')+'"></div><div class="fg" style="grid-column:span 2;"><label class="fl">Note (optional)</label><input class="fc" data-f="note" value="'+esc(b.note||'')+'"></div></div>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-delbank="'+i+'" style="color:var(--danger);">Remove</button><input type="hidden" data-f="id" value="'+esc(b.id||'')+'"></div>';
+  }
+  var gwHtml = cfg.gateways.map(function(g){
+    return '<div class="card sab-gw" data-id="'+esc(g.id)+'" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;"><strong>'+esc(g.label)+'</strong>' +
+      '<label class="chk"><input type="checkbox" data-f="enabled" '+(g.enabled?'checked':'')+'><span>Enabled</span></label></div>' +
+      '<div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div class="fg"><label class="fl">Secret key</label><input class="fc" type="password" autocomplete="new-password" data-f="secret" placeholder="'+(g.hasKey?'Saved ('+esc(g.keyHint)+'). Leave blank to keep.':esc(g.hint))+'"></div>' +
+      '<div class="fg"><label class="fl">Currency</label><div style="display:flex;gap:12px;padding-top:8px;">'+g.supported.map(function(c){ return '<label class="chk"><input type="checkbox" data-cur="'+c+'" '+(g.currencies.indexOf(c)!==-1?'checked':'')+'><span>'+c+'</span></label>'; }).join('')+'</div></div></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;"><button type="button" class="btn btn-outline btn-sm" data-testgw="'+esc(g.id)+'">Test</button>'+(g.hasKey?'<button type="button" class="btn btn-ghost btn-sm" data-cleargw="'+esc(g.id)+'" style="color:var(--danger);">Remove key</button>':'')+'<span style="font-size:12px;color:var(--muted);">'+(g.hasKey?'Key saved':'No key yet')+'</span></div></div>';
+  }).join('');
+  var review = pays.filter(function(p){ return p.status === 'Awaiting review'; });
+  function payRows(list){
+    return list.map(function(p){
+      var tg = p.status==='Paid'?'tag-green':(p.status==='Rejected'?'tag-red':'tag-amber');
+      return '<tr><td>'+esc(billDate(p.createdAt))+'</td><td>'+esc(p.orgName)+'</td><td>'+esc(p.plan)+' · '+esc(p.period)+'</td><td>'+esc(billMoney(p.currency,p.amount))+'</td><td>'+esc(p.method==='bank'?'Bank transfer':(p.gateway||'Online'))+'</td><td><span class="tag '+tg+'">'+esc(p.status)+'</span></td>' +
+        '<td style="font-size:12px;">'+esc(p.reference)+(p.note?'<br>'+esc(p.note):'')+(p.proofUrl?'<br><a href="'+esc(p.proofUrl)+'" target="_blank" rel="noopener">View proof</a>':'')+'</td>' +
+        '<td>'+(p.status==='Awaiting review'?'<button class="btn btn-sm btn-success" data-approve="'+esc(p.id)+'">Approve</button> <button class="btn btn-sm btn-danger" data-reject="'+esc(p.id)+'">Reject</button>':'')+'</td></tr>';
+    }).join('');
+  }
+  var head = '<thead><tr><th>Date</th><th>Organization</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Reference</th><th>Actions</th></tr></thead>';
+  body.innerHTML =
+    (review.length ? '<div class="card" style="margin-bottom:16px;border-color:#FDE68A;background:#FFFBEB;"><h4 style="margin:0 0 8px;">Transfers to review ('+review.length+')</h4><div class="table-wrap"><table class="dtbl">'+head+'<tbody>'+payRows(review)+'</tbody></table></div></div>' : '') +
+    '<div class="card" style="margin-bottom:16px;"><h4 style="margin:0 0 4px;">Payment gateways</h4>'+hint('Customers pay on the gateway’s own page and come back to <strong>'+esc(cfg.appUrl||'(set APP_URL)')+'</strong>. Keys are stored privately on the server and never shown again. Use <strong>test</strong> keys first.')+'<div style="margin-top:12px;">'+gwHtml+'</div></div>' +
+    '<div class="card" style="margin-bottom:16px;"><h4 style="margin:0 0 4px;">Bank accounts</h4>'+hint('Shown to organisations that choose bank transfer, by currency. Add one per currency you accept.')+'<div id="sabBanks" style="margin-top:12px;">'+banks.map(bankRow).join('')+'</div><button class="btn btn-outline btn-sm" id="sabAddBank">+ Add bank account</button></div>' +
+    '<div class="card" style="margin-bottom:16px;"><h4 style="margin:0 0 10px;">Checkout options</h4><div class="form-grid" style="display:grid;grid-template-columns:200px 1fr;gap:12px;"><div class="fg"><label class="fl">Yearly price = monthly × (months)</label><input class="fc" type="number" min="1" max="12" id="sabYear" value="'+cfg.yearlyMonths+'"></div><div class="fg"><label class="fl">Instructions shown with bank details</label><input class="fc" id="sabInstr" value="'+esc(cfg.instructions)+'" placeholder="e.g. Use your organisation name as the narration"></div></div>'+hint('Set each plan’s ₦ and US$ price under Pricing Plans. Currency symbols, languages and plans work in the demo; real charges need live keys.')+'</div>' +
+    '<button class="btn btn-primary" id="sabSave" style="min-width:200px;">Save billing settings</button>' +
+    '<div class="card" style="margin-top:20px;"><h4 style="margin:0 0 8px;">All payments</h4>'+(pays.length?'<div class="table-wrap"><table class="dtbl">'+head+'<tbody>'+payRows(pays)+'</tbody></table></div>':'<div style="font-size:13px;color:var(--muted);">No payments yet</div>')+'</div>';
+  function readBanks(){ return Array.prototype.map.call(body.querySelectorAll('.sab-bank'), function(c){ var o = {}; Array.prototype.forEach.call(c.querySelectorAll('[data-f]'), function(i){ o[i.dataset.f] = i.value; }); return o; }); }
+  function readGws(clear){ return Array.prototype.map.call(body.querySelectorAll('.sab-gw'), function(c){ var id = c.dataset.id; return { id:id, enabled:c.querySelector('[data-f="enabled"]').checked, secret:c.querySelector('[data-f="secret"]').value, clear:clear === id,
+    currencies:Array.prototype.map.call(c.querySelectorAll('[data-cur]:checked'), function(x){ return x.dataset.cur; }) }; }); }
+  body.querySelector('#sabAddBank').addEventListener('click', function(){ banks = readBanks(); banks.push({ currency:'NGN' }); body.querySelector('#sabBanks').innerHTML = banks.map(bankRow).join(''); wireBank(); });
+  function wireBank(){ Array.prototype.forEach.call(body.querySelectorAll('[data-delbank]'), function(b){ b.addEventListener('click', function(){ banks = readBanks(); banks.splice(Number(b.dataset.delbank), 1); body.querySelector('#sabBanks').innerHTML = banks.map(bankRow).join(''); wireBank(); }); }); }
+  wireBank();
+  function save(clear){ return api('superadmin.saveBilling', { gateways:readGws(clear), banks:readBanks(), yearlyMonths:body.querySelector('#sabYear').value, instructions:body.querySelector('#sabInstr').value }); }
+  body.querySelector('#sabSave').addEventListener('click', function(){ var b = body.querySelector('#sabSave'); busy(b, true); save().then(function(c){ toast('Billing settings saved.', 'success'); saBillingRender(body, c, pays); }).catch(saErr).finally(function(){ busy(b, false); }); });
+  Array.prototype.forEach.call(body.querySelectorAll('[data-testgw]'), function(b){ b.addEventListener('click', function(){ var c = b.closest('.sab-gw'); busy(b, true, 'Testing…'); api('superadmin.testGateway', { id:b.dataset.testgw, secret:c.querySelector('[data-f="secret"]').value }).then(function(r){ toast(r.message, 'success'); }).catch(saErr).finally(function(){ busy(b, false); }); }); });
+  Array.prototype.forEach.call(body.querySelectorAll('[data-cleargw]'), function(b){ b.addEventListener('click', function(){ confirmModal('Remove key', 'Remove the saved key? The gateway will stop working until you add a new one.', function(){ save(b.dataset.cleargw).then(function(c){ toast('Key removed.', 'success'); saBillingRender(body, c, pays); }).catch(saErr); }, true); }); });
+  Array.prototype.forEach.call(body.querySelectorAll('[data-approve]'), function(b){ b.addEventListener('click', function(){ confirmModal('Approve payment', 'Confirm the money arrived. The organisation will move to the paid plan right away.', function(){ api('superadmin.reviewPayment', { payId:b.dataset.approve, decision:'approve' }).then(function(){ toast('Payment approved. Plan activated.', 'success'); saBilling(body); }).catch(saErr); }); }); });
+  Array.prototype.forEach.call(body.querySelectorAll('[data-reject]'), function(b){ b.addEventListener('click', function(){
+    openModal('sm', 'Reject transfer', '<div class="fg"><label class="fl">Note to the organisation (optional)</label><textarea class="fc" id="sabRejNote" rows="3"></textarea></div>', '<button class="btn btn-secondary" data-action="close-modal">Cancel</button><button class="btn btn-danger" id="sabRejGo">Reject</button>');
+    $id('sabRejGo').addEventListener('click', function(){ var n = $id('sabRejNote').value; api('superadmin.reviewPayment', { payId:b.dataset.reject, decision:'reject', note:n }).then(function(){ closeModal(); toast('Transfer rejected.', 'success'); saBilling(body); }).catch(saErr); });
+  }); });
+}
+
+/* ---------------- demo (offline preview) ---------------- */
+function demoBillingRoute(action, data, d){
+  if(action.indexOf('billing.') !== 0 && ['superadmin.getBilling','superadmin.saveBilling','superadmin.testGateway','superadmin.billingPayments','superadmin.reviewPayment'].indexOf(action) === -1) return null;
+  d.bill = d.bill || { banks:[{ id:'bk1', currency:'NGN', bankName:'Demo Bank', accountName:'BPA Dynamics', accountNumber:'0123456789', swift:'', iban:'', branch:'', note:'' },{ id:'bk2', currency:'USD', bankName:'Demo Global Bank', accountName:'BPA Dynamics', accountNumber:'9876543210', swift:'DEMOUS33', iban:'', branch:'', note:'' }], instructions:'Use your organisation name as the narration.', yearlyMonths:10, pays:[] };
+  var thr = function(m){ throw { message:m }; }, B = d.bill, V = function(v){ return { handled:true, value:v }; };
+  var plans = demoPlatform().plans;
+  function usd(n){ var p = plans[n]; return p.priceUSD != null ? Number(p.priceUSD) : PLAN_USD_FALLBACK[n]; }
+  function price(n, cur, per){ var m = cur === 'USD' ? usd(n) : Number(plans[n].price); if(!(m > 0)) return -1; return per === 'yearly' ? m * B.yearlyMonths : m; }
+  if(action === 'billing.options') return V({ plans:PLAN_ORDER_CLIENT.map(function(n){ var p = plans[n]; return { name:n, label:p.label, price:Number(p.price), priceUSD:usd(n), maxMembers:p.maxMembers, features:p.features, yearly:{ NGN:price(n,'NGN','yearly'), USD:price(n,'USD','yearly') } }; }),
+    currencies:{ NGN:{symbol:'₦',name:'Nigerian naira'}, USD:{symbol:'$',name:'US dollar'} }, defaultCurrency:'NGN', yearlyMonths:B.yearlyMonths, gateways:[], banks:B.banks, instructions:B.instructions,
+    currentPlan:(STATE.org||{}).plan || 'Starter', planExpiresAt:'', trialDaysLeft:(STATE.org||{}).trialDaysLeft || null, pending:B.pays.filter(function(p){ return p.status === 'Awaiting review'; }) });
+  if(action === 'billing.history') return V(B.pays.slice().reverse());
+  if(action === 'billing.checkout') thr('Online card payments work on the live server once a gateway key is saved. Use bank transfer in this preview.');
+  if(action === 'billing.verify') thr('Nothing to verify in the preview.');
+  if(action === 'billing.submitTransfer'){
+    var amt = price(data.plan, data.currency, data.period); if(amt < 0) thr('That plan has no price in '+data.currency+'.');
+    var row = { id:'BP-DEMO-'+(B.pays.length+1), orgId:(STATE.org||{}).id, orgName:(STATE.org||{}).name, plan:data.plan, period:data.period, currency:data.currency, amount:amt, method:'bank', gateway:'bank:'+data.bankId, reference:'BP-DEMO-'+(B.pays.length+1), status:'Awaiting review', note:'Ref: '+data.reference, createdAt:new Date().toISOString(), proofUrl:'' };
+    B.pays.push(row); demoTSave(); return V(row);
+  }
+  if(action === 'superadmin.getBilling') return V({ gateways:[{ id:'paystack', label:'Paystack', hint:'Secret key (sk_live_… or sk_test_…)', enabled:false, currencies:['NGN','USD'], supported:['NGN','USD'], hasKey:false, keyHint:'' },{ id:'flutterwave', label:'Flutterwave', hint:'Secret key (FLWSECK-…)', enabled:false, currencies:['NGN','USD'], supported:['NGN','USD'], hasKey:false, keyHint:'' },{ id:'stripe', label:'Stripe', hint:'Secret key (sk_live_… or sk_test_…)', enabled:false, currencies:['USD'], supported:['USD'], hasKey:false, keyHint:'' }],
+    banks:B.banks, instructions:B.instructions, yearlyMonths:B.yearlyMonths, currencies:{ NGN:{symbol:'₦'}, USD:{symbol:'$'} }, appUrl:location.origin });
+  if(action === 'superadmin.saveBilling'){ B.banks = (data.banks||[]).filter(function(b){ return b.bankName && b.accountNumber; }).map(function(b,i){ b.id = b.id || ('bk'+Date.now()+i); return b; }); B.instructions = data.instructions || ''; B.yearlyMonths = Number(data.yearlyMonths) || 10; demoTSave(); return demoBillingRoute('superadmin.getBilling', {}, d); }
+  if(action === 'superadmin.testGateway') thr('Gateway keys can only be tested on the live server.');
+  if(action === 'superadmin.billingPayments') return V(B.pays.slice().reverse());
+  if(action === 'superadmin.reviewPayment'){ B.pays.forEach(function(p){ if(p.id === data.payId){ p.status = data.decision === 'approve' ? 'Paid' : 'Rejected'; } }); demoTSave(); return V({ ok:true }); }
+  return null;
+}
+
 /* ============================================================================
  * MULTI-TENANT FRONT DOOR: signup, trial banner, public-site routing, demo data
  * ==========================================================================*/
@@ -6984,6 +7923,7 @@ function demoTenantRoute(action, data){
     var user = { UserID:'USR-DEMO-'+id, FullName:data.fullName, Email:data.email, Role:'President', IsActive:true, OrgID:id };
     return { handled:true, value:Object.assign({ sessionToken:'demo-token', user:user, firstRun:true, org:{ id:id, name:data.orgName, theme:'blue', plan:'Pro', trialDaysLeft:14, logo:'', aiModelId:'' } }, demoSessionExtras(user)) };
   }
+  var __bill = demoBillingRoute(action, data, d); if(__bill) return __bill;
   if(action === 'superadmin.listOrgs') return { handled:true, value:d.orgs.slice().reverse() };
   if(action === 'superadmin.messagingOverview'){ var __me = ((demoT().msg || {}).email) || {}; return { handled:true, value:d.orgs.map(function(o){ var __m = demoT().msg || {}; return { orgId:o.id, name:o.name, adminEmail:o.adminEmail, email:{ mode:__me.mode || 'default', fromEmail:__me.fromEmail || '', fromName:__me.fromName || '', replyTo:__me.replyTo || o.adminEmail || '', ready:true, keyHint:__me.hasKey ? '••••demo' : '' }, sms:{ provider:(__m.sms || {}).provider || '', ready:!!(__m.sms || {}).provider, sender:(__m.sms || {}).senderId || '', keyHint:(__m.sms || {}).hasKey ? '••••demo' : '' }, whatsapp:{ provider:(__m.wa || {}).provider || '', ready:!!(__m.wa || {}).provider, sender:(__m.wa || {}).from || '', keyHint:(__m.wa || {}).hasKey ? '••••demo' : '' }, autoSend:false }; }) }; }
   if(action === 'superadmin.setOrgPlan'){ d.orgs.forEach(function(o){ if(o.id===data.orgId){ o.plan = data.plan; o.trialEndsAt = ''; } }); demoTSave(); return { handled:true, value:{updated:true} }; }
@@ -7084,6 +8024,8 @@ function demoTenantRoute(action, data){
   return null;
 }
 
+
+i18nBoot();
 
 wireAll();
 </script>
